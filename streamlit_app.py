@@ -22,7 +22,6 @@ st.write("Upload one or more **Hungarian invoices (PDFs)** to extract relevant i
 #0) Drag & Drop File Uploader
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
-st.write(os.listdir('./'))
 
 #1) text extraction from pdf
 extracted_text_from_invoice = []
@@ -44,7 +43,7 @@ if st.button("Extract Data"):
                 pdf_content = ""
                 try:
                     uploaded_file.seek(0)
-                    images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path=r'poppler-20.09.0/Library/bin')
+                    images = pdf2image.convert_from_bytes(uploaded_file.read())
                     for img in images:
                         pdf_content += pytesseract.image_to_string(img, lang="hun")
                 except Exception as e:
