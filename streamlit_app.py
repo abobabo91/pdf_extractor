@@ -10,8 +10,11 @@ from openai import OpenAI
 
 
 openai.organization = "org-i7aicv7Qc0PO4hkTCT4N2BqR"
-openai.api_key = st.secrets['openai']["OPENAI_API_KEY"]
 
+if "openai" in st.secrets and "OPENAI_API_KEY" in st.secrets["openai"]:
+    openai.api_key = st.secrets["openai"]["OPENAI_API_KEY"]
+else:
+    st.error("⚠️ OpenAI API key is missing. Please add it to `secrets.toml` or Streamlit Cloud secrets.")
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
