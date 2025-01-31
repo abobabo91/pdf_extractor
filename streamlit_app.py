@@ -105,4 +105,4 @@ if len(extracted_data) != 0:
 
     # Offer CSV download
     csv = df.to_excel(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", csv, "invoice_data.xlsx", "text/csv", key="download-csv")
+    st.download_button("📥 Download CSV", csv, "invoice_data.xlsx", key="download-csv")
