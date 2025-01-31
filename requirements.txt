@@ -1,1 +1,6 @@
+streamlit
+pandas
+PyPDF2
+pytesseract
+pdf2image
 openai
