@@ -22,11 +22,13 @@ st.write("Upload one or more **Hungarian invoices (PDFs)** to extract relevant i
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 
+
 #1) text extraction from pdf
 extracted_text_from_invoice = []
 if st.button("Extract Data"):
     if uploaded_files:
-        for uploaded_file in uploaded_files:
+        st.write("Parsing the first 50 files.")
+        for uploaded_file in uploaded_files[:50]:
             file_name = uploaded_file.name
             pdf_content = ""
 
@@ -48,6 +50,10 @@ if st.button("Extract Data"):
                 except Exception as e:
                     st.error(f"OCR failed for {file_name}: {e}")
                     continue
+                
+            if len(pdf_content) > 5000:
+                st.write(file_name + " file is too big. Only parsing the first 5000 characters.")
+                pdf_content = pdf_content[:5000]
             
             extracted_text_from_invoice.append([file_name, pdf_content])
     else:
