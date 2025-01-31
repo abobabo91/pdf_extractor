@@ -13,7 +13,6 @@ openai.organization = "org-i7aicv7Qc0PO4hkTCT4N2BqR"
 openai.api_key = st.secrets['openai']["OPENAI_API_KEY"]
 
 
-#pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 st.title("📄 Invoice Data Extractor")
 
