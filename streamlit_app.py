@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from st_files_connection import FilesConnection
 
 import openai
 from openai import OpenAI
