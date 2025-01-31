@@ -22,7 +22,7 @@ st.write("Upload one or more **Hungarian invoices (PDFs)** to extract relevant i
 #0) Drag & Drop File Uploader
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
-st.write(os.path.isdir(r'poppler-20.09.0/Library/bin'))
+st.write(os.listdir('./'))
 
 #1) text extraction from pdf
 extracted_text_from_invoice = []
