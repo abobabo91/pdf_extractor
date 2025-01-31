@@ -27,7 +27,8 @@ uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_f
 extracted_text_from_invoice = []
 if st.button("Extract Data"):
     if uploaded_files:
-        st.write("Parsing the first 50 files.")
+        if len(uploaded_files) > 50:
+            st.write("Parsing the first 50 files.")
         for uploaded_file in uploaded_files[:50]:
             file_name = uploaded_file.name
             pdf_content = ""
