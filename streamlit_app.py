@@ -104,5 +104,5 @@ if len(extracted_data) != 0:
     st.dataframe(df)
 
     # Offer CSV download
-    csv = df.to_csv(index=False).encode("utf-8")
+    csv = df.to_csv(sep=';', index=False).encode("utf-8")
     st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
