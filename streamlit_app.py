@@ -45,7 +45,7 @@ if st.button("Extract Data"):
                 pdf_content = ""
                 try:
                     uploaded_file.seek(0)
-                    images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path=r'C:\WPy64-3870\poppler-24.08.0\Library\bin')
+                    images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path=r'Personal/poppler-24.02.0/Library/bin')
                     for img in images:
                         pdf_content += pytesseract.image_to_string(img, lang="hun")
                 except Exception as e:
