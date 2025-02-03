@@ -128,33 +128,22 @@ if st.button("Extract Data"):
     if len(df_extracted)>0:
         if len(df_excel)>0:
             st.write("Merging the extracted data and the excel:")
-
-            # Store merged dataframe in session state
-            if "df_merged" not in st.session_state:
-                st.session_state.df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
-        
-            st.dataframe(st.session_state.df_merged)
-        
-            # CSV Download (Persisted)
-            csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "📥 Download CSV",
-                csv,
-                "invoice_data.csv",
-                "text/csv",
-                key="download-csv"
-            )
-        
-            # Excel Download (Persisted)
-            if "buffer" not in st.session_state:
-                st.session_state.buffer = BytesIO()
-                with pd.ExcelWriter(st.session_state.buffer, engine='xlsxwriter') as writer:
-                    st.session_state.df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
-                    writer.close()
-        
-            st.download_button(
-                label="📥 Download Excel",
-                data=st.session_state.buffer.getvalue(),
-                file_name='invoice_data.xlsx',
-                mime='application/vnd.ms-excel'
-            )
+            
+            df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+            st.dataframe(df_merged)
+            
+            # Offer CSV download
+            csv = df_merged.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+            
+            buffer = BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # Write each dataframe to a different worksheet.
+                df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
+                writer.close()
+                download2 = st.download_button(
+                    label="📥 Download Excel",
+                    data=buffer,
+                    file_name='invoice_data.xlsx',
+                    mime='application/vnd.ms-excel'
+                )
