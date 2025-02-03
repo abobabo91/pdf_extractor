@@ -24,8 +24,8 @@ uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_f
 
 #1) text extraction from pdf
 extracted_text_from_invoice = []
-if st.button("Extract Data"):
-    if uploaded_files:
+if uploaded_files:
+    if st.button("Extract Data"):        
         if len(uploaded_files) > 50:
             st.write("Parsing the first 50 files.")
         for uploaded_file in uploaded_files[:50]:
@@ -112,21 +112,20 @@ st.write("2) Upload the excel sheet to verify the results.")
 uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
 
 if uploaded_excel_file:
-    df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel',
-                   skiprows = range(1, 9))
+    df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
     df_excel.columns = list(df_excel.iloc[0])
     df_excel = df_excel.iloc[1:]
 
-if len(df_excel) != 0:
+if df_excel:
     st.write("✅ **Excel upload complete!** Here is the first few rows:")
     st.dataframe(df_excel.head(5))
 
 
 
-st.write("3) Merge the extracted data to the excel.")
-if st.button("Merge Data"):
-    if len(df_excel) != 0:
-        if len(extracted_data) != 0:
+if df_excel:
+    if len(extracted_data) != 0:
+        st.write("3) Merge the extracted data to the excel.")
+        if st.button("Merge Data"):
             df_merged = pd.merge(df_excel, df, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
             st.dataframe(df_merged)
 
