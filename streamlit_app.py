@@ -120,5 +120,5 @@ if uploaded_excel_file:
 
 
 # Offer CSV download
-csv = df.to_csv(index=False).encode("utf-8")
-st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+#csv = df.to_csv(index=False).encode("utf-8")
+#st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
