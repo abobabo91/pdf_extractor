@@ -119,9 +119,13 @@ if uploaded_excel_file:
     df_excel.columns = list(df_excel.iloc[0])
     df_excel = df_excel.iloc[1:]
 
+if len(df_excel) != 0:
+    st.write("✅ **Excel upload complete!** Here is the first few rows:")
+    st.dataframe(df_excel.head(10))
+
 
 if st.button("Merge Data"):
-    if uploaded_excel_file:
+    if len(df_excel) != 0:
         if len(extracted_data) != 0:
             df_merged = pd.merge(df_excel, df, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
             st.dataframe(df_merged)
