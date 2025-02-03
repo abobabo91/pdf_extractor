@@ -102,9 +102,9 @@ if st.button("Extract Data"):
     if len(extracted_data) != 0:
         df_extracted = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
 
-    if len(df_extracted) > 0:        
-        st.write("✅ **Extraction complete!** Here are the results:")
-        st.dataframe(df_extracted)
+if len(df_extracted) > 0:        
+    st.write("✅ **Extraction complete!** Here are the results:")
+    st.dataframe(df_extracted)
 
 
 
