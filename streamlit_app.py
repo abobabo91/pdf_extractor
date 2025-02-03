@@ -105,7 +105,7 @@ if st.button("Extract Data"):
                 continue
 
     if len(extracted_data) != 0:
-        df_extracted = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
+        df_extracted = pd.DataFrame(extracted_data, columns=["Fájlnév", "Partner", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
 
     if len(df_extracted) > 0:        
         st.write("✅ **Extraction complete!** Here are the results:")
@@ -127,9 +127,17 @@ if st.button("Extract Data"):
         if len(df_excel)>0:
             st.write("Merging the extracted data and the excel:")
             
-            df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
+            df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
             st.dataframe(df_merged)
             
             # Offer CSV download
-            csv = df_merged.to_excel(index=False).encode("utf-8")
-            st.download_button("📥 Download Excel", csv, "invoice_data.xlsx", "text/csv", key="download-csv")
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # Write each dataframe to a different worksheet.
+                df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
+            
+                download2 = st.download_button(
+                    label="📥 Download Excel",
+                    data=buffer,
+                    file_name='invoice_data.xlsx',
+                    mime='application/vnd.ms-excel'
+                )
