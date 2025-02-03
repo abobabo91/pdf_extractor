@@ -106,6 +106,7 @@ if st.button("Extract Data"):
 
     if len(extracted_data) != 0:
         df_extracted = pd.DataFrame(extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
+        df_extracted["Számlaszám"] = df_extracted["Számlaszám"].astype(str)
 
     if len(df_extracted) > 0:        
         st.write("✅ **Extraction complete!** Here are the results:")
@@ -116,7 +117,8 @@ if st.button("Extract Data"):
         df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
         df_excel.columns = list(df_excel.iloc[0])
         df_excel = df_excel.iloc[1:]
-    
+        df_excel["Bizonylatszám"] = df_excel["Bizonylatszám"].astype(str)
+
         try:
             st.write("✅ **Excel upload complete!** Here is the first few rows:")
             st.dataframe(df_excel.head(5))
@@ -132,7 +134,7 @@ if st.button("Extract Data"):
             
             # Offer CSV download
             csv = df_merged.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Download Excel", csv, "invoice_data.csv", "text/csv", key="download-csv")
+            st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
             
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
