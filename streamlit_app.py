@@ -16,7 +16,7 @@ openai.api_key = st.secrets['openai']["OPENAI_API_KEY"]
 
 st.title("📄 Invoice Data Extractor")
 
-st.write("Upload one or more **Hungarian invoices (PDFs)** to extract relevant information.")
+st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevant information.")
 
 #0) Drag & Drop File Uploader
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
@@ -105,7 +105,7 @@ if extracted_text_from_invoice:
 
 
 #3) Drag & Drop File Uploader for excel
-st.write("Upload the excel sheet to verify the results.")
+st.write("2) Upload the excel sheet to verify the results.")
 uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
 
 
