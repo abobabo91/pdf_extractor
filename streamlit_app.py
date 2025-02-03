@@ -141,7 +141,7 @@ try:
 except:
     pass
 
-try 
+try:
     if len(df_merged) > 0: 
         st.dataframe(df_merged)
         # Offer CSV download
