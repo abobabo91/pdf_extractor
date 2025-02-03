@@ -24,8 +24,8 @@ uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_f
 
 #1) text extraction from pdf
 extracted_text_from_invoice = []
-if uploaded_files:
-    if st.button("Extract Data"):        
+if st.button("Extract Data"):        
+    if uploaded_files:
         if len(uploaded_files) > 50:
             st.write("Parsing the first 50 files.")
         for uploaded_file in uploaded_files[:50]:
@@ -117,9 +117,12 @@ if uploaded_excel_file:
     df_excel = df_excel.iloc[1:]
 
 
-    if df_excel:
+    try:
         st.write("✅ **Excel upload complete!** Here is the first few rows:")
         st.dataframe(df_excel.head(5))
+    except Exception as e:
+        st.error("Failed to extract Excel file.")
+        continue
 
 
 
