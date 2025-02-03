@@ -129,9 +129,7 @@ if st.button("Extract Data"):
             
             df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
             st.dataframe(df_merged)
-            asd = 1
-
-if asd == 1:            
-    # Offer CSV download
-    csv = df_merged.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", df_merged, "invoice_data.csv", "text/csv", key="download-csv")
+            
+            # Offer CSV download
+            csv = df_merged.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
