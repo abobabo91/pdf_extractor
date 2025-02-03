@@ -116,13 +116,14 @@ if uploaded_excel_file:
     df_excel.columns = list(df_excel.iloc[0])
     df_excel = df_excel.iloc[1:]
 
-if df_excel:
-    st.write("✅ **Excel upload complete!** Here is the first few rows:")
-    st.dataframe(df_excel.head(5))
+
+    if df_excel:
+        st.write("✅ **Excel upload complete!** Here is the first few rows:")
+        st.dataframe(df_excel.head(5))
 
 
 
-if df_excel:
+if uploaded_excel_file:
     if len(extracted_data) != 0:
         st.write("3) Merge the extracted data to the excel.")
         if st.button("Merge Data"):
