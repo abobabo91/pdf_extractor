@@ -116,13 +116,11 @@ if uploaded_excel_file:
     df_excel.columns = list(df_excel.iloc[0])
     df_excel = df_excel.iloc[1:]
 
-
     try:
         st.write("✅ **Excel upload complete!** Here is the first few rows:")
         st.dataframe(df_excel.head(5))
-    except Exception as e:
-        st.error("Failed to extract Excel file.")
-        continue
+    except:
+        st.warning("Failed to extract Excel file.")
 
 
 
