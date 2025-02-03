@@ -118,7 +118,7 @@ if uploaded_excel_file:
                    skiprows = range(1, 9))
     df_excel.columns = list(df_excel.iloc[1])
     df_excel = df_excel.iloc[1:]
-    st.dataframe(df_excel.iloc)
+    st.dataframe(df_excel)
 
 
 
