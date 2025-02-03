@@ -111,7 +111,9 @@ uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accep
 
 #3) output csv
 if len(extracted_data) != 0:
-    
+    if uploaded_excel_file:
+        df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel')
+        st.dataframe(df_excel.head())
         df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
         st.write("✅ **Extraction complete!** Here are the results:")
         st.dataframe(df)
