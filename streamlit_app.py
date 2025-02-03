@@ -135,7 +135,7 @@ if st.button("Extract Data"):
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                 # Write each dataframe to a different worksheet.
                 df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
-            
+                writer.close()
                 download2 = st.download_button(
                     label="📥 Download Excel",
                     data=buffer,
