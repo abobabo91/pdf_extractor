@@ -22,7 +22,6 @@ st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevan
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 
-
 #1) text extraction from pdf
 extracted_text_from_invoice = []
 if st.button("Extract Data"):
@@ -101,7 +100,6 @@ if extracted_text_from_invoice:
             st.error(f"GPT-4 extraction failed for {file_name}: {e}")
             continue
 
-#3) output csv
 if len(extracted_data) != 0:
     df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
     st.write("✅ **Extraction complete!** Here are the results:")
@@ -121,9 +119,11 @@ if uploaded_excel_file:
 
 if len(df_excel) != 0:
     st.write("✅ **Excel upload complete!** Here is the first few rows:")
-    st.dataframe(df_excel.head(10))
+    st.dataframe(df_excel.head(5))
 
 
+
+st.write("3) Merge the extracted data to the excel.")
 if st.button("Merge Data"):
     if len(df_excel) != 0:
         if len(extracted_data) != 0:
