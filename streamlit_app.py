@@ -115,7 +115,7 @@ uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accep
 
 if uploaded_excel_file:
     df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel')
-    st.dataframe(df_excel.head())
+    st.dataframe(df_excel)
 
 
 
