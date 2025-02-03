@@ -114,7 +114,8 @@ st.write("2) Upload the excel sheet to verify the results.")
 uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
 
 if uploaded_excel_file:
-    df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel')
+    df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel',
+                   skiprows = range(1, 9))
     st.dataframe(df_excel)
 
 
