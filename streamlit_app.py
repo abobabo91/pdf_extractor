@@ -21,8 +21,6 @@ st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevan
 #0) Drag & Drop File Uploader
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
-
-
 #1) text extraction from pdf
 extracted_text_from_invoice = []
 if st.button("Extract Data"):        
@@ -104,13 +102,10 @@ if st.button("Extract Data"):
     if len(extracted_data) != 0:
         df_extracted = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
 
-
-try: 
     if len(df_extracted) > 0:        
         st.write("✅ **Extraction complete!** Here are the results:")
         st.dataframe(df_extracted)
-except:
-    pass
+
 
 
 
@@ -132,20 +127,14 @@ if uploaded_excel_file:
 
 
 #4) merge extracted data to excel
-try:
-    if len(df_extracted) > 0:
-        if len(df_excel) > 0:
-            st.write("3) Merge the extracted data to the excel.")
-            if st.button("Merge Data"):
-                df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
-except:
-    pass
+if uploaded_excel_file:
+    if extracted_text_from_invoice:
+        st.write("3) Merge the extracted data to the excel.")
+        if st.button("Merge Data"):
+            df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
 
-try:
-    if len(df_merged) > 0: 
-        st.dataframe(df_merged)
-        # Offer CSV download
-        csv = df_merged.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Download CSV", df_merged, "invoice_data.csv", "text/csv", key="download-csv")
-except:
-    pass
+
+            st.dataframe(df_merged)
+            # Offer CSV download
+            csv = df_merged.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV", df_merged, "invoice_data.csv", "text/csv", key="download-csv")
