@@ -118,10 +118,14 @@ if uploaded_excel_file:
                    skiprows = range(1, 9))
     df_excel.columns = list(df_excel.iloc[0])
     df_excel = df_excel.iloc[1:]
-    st.dataframe(df_excel)
 
 
+if uploaded_excel_file:
+    if len(extracted_data) != 0:
+        if st.button("Merge Data"):
+            df_merged = pd.merge(df_excel, df, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
+            st.dataframe(df_merged)
 
-# Offer CSV download
-#csv = df.to_csv(index=False).encode("utf-8")
-#st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+            # Offer CSV download
+            csv = df_merged.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV", df_merged, "invoice_data.csv", "text/csv", key="download-csv")
