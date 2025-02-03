@@ -122,7 +122,7 @@ if st.button("Extract Data"):
         except:
             st.warning("Failed to extract Excel file.")
 
-    if len(extracted_data)>0:
+    if len(df_extracted)>0:
         if len(df_excel)>0:
             st.write("Merging the extracted data to the excel.")
             
