@@ -26,6 +26,7 @@ st.write("2) Upload the excel sheet to verify the results.")
 uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
 
 #1) text extraction from pdf
+asd = 0
 if st.button("Extract Data"):  
     extracted_text_from_invoice = []      
     if uploaded_files:
@@ -124,12 +125,13 @@ if st.button("Extract Data"):
 
     if len(df_extracted)>0:
         if len(df_excel)>0:
-            st.write("Merging the extracted data to the excel.")
+            st.write("Merging the extracted data and the excel:")
             
             df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
-
-
             st.dataframe(df_merged)
-            # Offer CSV download
-            csv = df_merged.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Download CSV", df_merged, "invoice_data.csv", "text/csv", key="download-csv")
+            asd = 1
+
+if asd == 1:            
+    # Offer CSV download
+    csv = df_merged.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download CSV", df_merged, "invoice_data.csv", "text/csv", key="download-csv")
