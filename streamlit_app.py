@@ -21,6 +21,10 @@ st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevan
 #0) Drag & Drop File Uploader
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
+#0) Drag & Drop File Uploader for excel
+st.write("2) Upload the excel sheet to verify the results.")
+uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
+
 #1) text extraction from pdf
 if st.button("Extract Data"):  
     extracted_text_from_invoice = []      
@@ -102,35 +106,26 @@ if st.button("Extract Data"):
     if len(extracted_data) != 0:
         df_extracted = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
 
-if len(df_extracted) > 0:        
-    st.write("✅ **Extraction complete!** Here are the results:")
-    st.dataframe(df_extracted)
+    if len(df_extracted) > 0:        
+        st.write("✅ **Extraction complete!** Here are the results:")
+        st.dataframe(df_extracted)
 
 
+    if uploaded_excel_file:
+        df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
+        df_excel.columns = list(df_excel.iloc[0])
+        df_excel = df_excel.iloc[1:]
+    
+        try:
+            st.write("✅ **Excel upload complete!** Here is the first few rows:")
+            st.dataframe(df_excel.head(5))
+        except:
+            st.warning("Failed to extract Excel file.")
 
-
-#3) Drag & Drop File Uploader for excel
-st.write("2) Upload the excel sheet to verify the results.")
-uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
-
-if uploaded_excel_file:
-    df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
-    df_excel.columns = list(df_excel.iloc[0])
-    df_excel = df_excel.iloc[1:]
-
-    try:
-        st.write("✅ **Excel upload complete!** Here is the first few rows:")
-        st.dataframe(df_excel.head(5))
-    except:
-        st.warning("Failed to extract Excel file.")
-
-
-
-#4) merge extracted data to excel
-if uploaded_excel_file:
-    if len(uploaded_files)>0:
-        st.write("3) Merge the extracted data to the excel.")
-        if st.button("Merge Data"):
+    if len(extracted_data)>0:
+        if len(df_excel)>0:
+            st.write("Merging the extracted data to the excel.")
+            
             df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
 
 
