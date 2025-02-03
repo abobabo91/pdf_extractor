@@ -104,12 +104,18 @@ if extracted_text_from_invoice:
 
 
 
+#3) Drag & Drop File Uploader for excel
+st.write("Upload the excel sheet to verify the results.")
+uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
+
+
 #3) output csv
 if len(extracted_data) != 0:
-    df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
-    st.write("✅ **Extraction complete!** Here are the results:")
-    st.dataframe(df)
-
-    # Offer CSV download
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+    
+        df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
+        st.write("✅ **Extraction complete!** Here are the results:")
+        st.dataframe(df)
+    
+        # Offer CSV download
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
