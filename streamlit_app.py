@@ -60,50 +60,50 @@ if st.button("Extract Data"):
         st.warning("⚠️ Please upload at least one PDF file.")
 
 
-#2) data extraction from text
-extracted_data = []
-if extracted_text_from_invoice:    
-    for i in range(len(extracted_text_from_invoice)):
-        file_name = extracted_text_from_invoice[i][0]
-        pdf_content = extracted_text_from_invoice[i][1]
-        
-        gpt_prompt = ("""I send you an extract of a pdf bill invoice in hungarian. Your job is to find the final several data from the invoice: """ 
-                    + pdf_content +  """. Output the following in order: 
-                    1) the name of the partner, 
-                    2) the invoice number, 
-                    3) the date of the invoice,
-                    4) the total gross amount of the full invoice, 
-                    5) the total net amount of the invoice, 
-                    6) the total VAT (ÁFA in hungarian) of the invoice. 
-                    Output these values (1, 2 and 3 as strings, 4, 5 and 6 as integers) separated by ; and nothing else!""")
-
-        try:    
-            client = OpenAI(api_key=openai.api_key)
-        
-            response = client.chat.completions.create(
-                model='gpt-4o', 
-                messages=[
-                {"role": "system", "content": ""},
-                {"role": "user", "content": gpt_prompt}],
-                max_tokens = 50,
-                temperature=0,
-                timeout=30)
+    #2) data extraction from text
+    extracted_data = []
+    if extracted_text_from_invoice:    
+        for i in range(len(extracted_text_from_invoice)):
+            file_name = extracted_text_from_invoice[i][0]
+            pdf_content = extracted_text_from_invoice[i][1]
             
-            extracted_text = response.choices[0].message.content.strip()
+            gpt_prompt = ("""I send you an extract of a pdf bill invoice in hungarian. Your job is to find the final several data from the invoice: """ 
+                        + pdf_content +  """. Output the following in order: 
+                        1) the name of the partner, 
+                        2) the invoice number, 
+                        3) the date of the invoice,
+                        4) the total gross amount of the full invoice, 
+                        5) the total net amount of the invoice, 
+                        6) the total VAT (ÁFA in hungarian) of the invoice. 
+                        Output these values (1, 2 and 3 as strings, 4, 5 and 6 as integers) separated by ; and nothing else!""")
+    
+            try:    
+                client = OpenAI(api_key=openai.api_key)
             
-            if len(extracted_text.split(";")) != 6:
+                response = client.chat.completions.create(
+                    model='gpt-4o', 
+                    messages=[
+                    {"role": "system", "content": ""},
+                    {"role": "user", "content": gpt_prompt}],
+                    max_tokens = 50,
+                    temperature=0,
+                    timeout=30)
+                
+                extracted_text = response.choices[0].message.content.strip()
+                
+                if len(extracted_text.split(";")) != 6:
+                    st.error(f"GPT-4 extraction failed for {file_name}: {e}")
+                    continue        
+                extracted_data.append([file_name] + extracted_text.split(";"))
+            
+            except Exception as e:
                 st.error(f"GPT-4 extraction failed for {file_name}: {e}")
-                continue        
-            extracted_data.append([file_name] + extracted_text.split(";"))
-        
-        except Exception as e:
-            st.error(f"GPT-4 extraction failed for {file_name}: {e}")
-            continue
+                continue
 
-if len(extracted_data) != 0:
-    df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
-    st.write("✅ **Extraction complete!** Here are the results:")
-    st.dataframe(df)
+    if len(extracted_data) != 0:
+        df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
+        st.write("✅ **Extraction complete!** Here are the results:")
+        st.dataframe(df)
 
 
 
@@ -124,6 +124,7 @@ if uploaded_excel_file:
 
 
 
+#4) merge extracted data to excel
 if uploaded_excel_file:
     if len(extracted_data) != 0:
         st.write("3) Merge the extracted data to the excel.")
