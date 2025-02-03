@@ -60,6 +60,7 @@ if st.button("Extract Data"):
                 pdf_content = pdf_content[:5000]
             
             extracted_text_from_invoice.append([file_name, pdf_content])
+
     else:
         st.warning("⚠️ Please upload at least one PDF file.")
 
@@ -103,6 +104,8 @@ if st.button("Extract Data"):
             except Exception as e:
                 st.error(f"GPT-4 extraction failed for {file_name}: {e}")
                 continue
+            
+            st.write(file_name + " is being extracted.")
 
     if len(extracted_data) != 0:
         df_extracted = pd.DataFrame(extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
