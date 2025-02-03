@@ -22,8 +22,8 @@ st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevan
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 #1) text extraction from pdf
-extracted_text_from_invoice = []
-if st.button("Extract Data"):        
+if st.button("Extract Data"):  
+    extracted_text_from_invoice = []      
     if uploaded_files:
         if len(uploaded_files) > 50:
             st.write("Parsing the first 50 files.")
@@ -128,7 +128,7 @@ if uploaded_excel_file:
 
 #4) merge extracted data to excel
 if uploaded_excel_file:
-    if extracted_text_from_invoice:
+    if len(uploaded_files)>0:
         st.write("3) Merge the extracted data to the excel.")
         if st.button("Merge Data"):
             df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Invoice Number')
