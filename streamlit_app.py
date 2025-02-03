@@ -101,6 +101,11 @@ if extracted_text_from_invoice:
             st.error(f"GPT-4 extraction failed for {file_name}: {e}")
             continue
 
+#3) output csv
+if len(extracted_data) != 0:
+    df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
+    st.write("✅ **Extraction complete!** Here are the results:")
+    st.dataframe(df)
 
 
 
@@ -108,16 +113,12 @@ if extracted_text_from_invoice:
 st.write("2) Upload the excel sheet to verify the results.")
 uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
 
+if uploaded_excel_file:
+    df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel')
+    st.dataframe(df_excel.head())
 
-#3) output csv
-if len(extracted_data) != 0:
-    if uploaded_excel_file:
-        df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel')
-        st.dataframe(df_excel.head())
-        df = pd.DataFrame(extracted_data, columns=["File", "Partner", "Invoice Number", "Invoice Date", "Gross Amount", "Net Amount", "VAT"])
-        st.write("✅ **Extraction complete!** Here are the results:")
-        st.dataframe(df)
-    
-        # Offer CSV download
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+
+
+# Offer CSV download
+csv = df.to_csv(index=False).encode("utf-8")
+st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
