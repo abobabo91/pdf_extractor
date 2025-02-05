@@ -22,8 +22,10 @@ if 'extracted_data' not in st.session_state:
     st.session_state.extracted_data = []
 if 'df_extracted' not in st.session_state:
     st.session_state.df_extracted = pd.DataFrame()
-if 'df_excel' not in st.session_state:
-    st.session_state.df_excel = pd.DataFrame()
+if 'df_minta' not in st.session_state:
+    st.session_state.df_minta = pd.DataFrame()
+if 'df_karton' not in st.session_state:
+    st.session_state.df_karton = pd.DataFrame()
 if 'df_merged' not in st.session_state:
     st.session_state.df_merged = pd.DataFrame()
 if 'number_of_tokens' not in st.session_state:
@@ -146,37 +148,62 @@ if len(st.session_state.df_extracted) > 0:
         )
 
 
-#0) Drag & Drop File Uploader for excel
-st.write("2) Upload the excel sheet to verify the results.")
-uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accept_multiple_files=False)  
 
-if st.button("Extract Excel"):  
-    if uploaded_excel_file:
+#UPLOAD MINTA
+st.write("2) Upload the excel file of the Minta to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name.")
+uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Minta'", type=["xlsx"], accept_multiple_files=False)  
+
+if st.button("Extract 'Minta'"):  
+    if uploaded_excel_file_minta:
         try:
-            st.session_state.df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
-            st.session_state.df_excel.columns = list(st.session_state.df_excel.iloc[0])
-            st.session_state.df_excel = st.session_state.df_excel.iloc[1:]
-            st.session_state.df_excel["Bizonylatszám"] = st.session_state.df_excel["Bizonylatszám"].astype(str)
+            st.session_state.df_minta = pd.read_excel(uploaded_excel_file_minta, sheet_name='Mintavétel', skiprows = range(1, 9))
+            st.session_state.df_minta.columns = list(st.session_state.df_minta.iloc[0])
+            st.session_state.df_minta = st.session_state.df_minta.iloc[1:]
+            st.session_state.df_minta["Bizonylatszám"] = st.session_state.df_minta["Bizonylatszám"].astype(str)
         except:
             st.warning("Failed to extract Excel file.")
     
-if len(st.session_state.df_excel) > 0:        
-    st.write("✅ **Excel upload complete!** Here is the first few rows:")
-    st.dataframe(st.session_state.df_excel.head(5))
+if len(st.session_state.df_minta) > 0:        
+    st.write("✅ **'Minta' Excel upload complete!** Here is the first few rows:")
+    st.dataframe(st.session_state.df_minta.head(5))
+
+
+#UPLOAD KARTON
+st.write("3) Upload the excel sheet of the 'Karton'. Make sure that the data starts in at the A1 cell, the sheet name is Munka1 and the 'Bizonylat' column has this exact name.")
+uploaded_excel_file_karton = st.file_uploader("Upload Excel file of the 'Karton'", type=["xlsx"], accept_multiple_files=False)  
+
+if st.button("Extract 'Karton'"):  
+    if uploaded_excel_file_karton:
+        try:
+            st.session_state.df_karton = pd.read_excel(uploaded_excel_file_karton, sheet_name='Munka1')
+            st.session_state.df_karton.columns = list(st.session_state.df_karton.iloc[0])
+            st.session_state.df_karton = st.session_state.df_karton.iloc[1:]
+            st.session_state.df_karton["Bizonylat"] = st.session_state.df_karton["Bizonylat"].astype(str)
+        except:
+            st.warning("Failed to extract Excel file.")
+    
+if len(st.session_state.df_karton) > 0:        
+    st.write("✅ **'Karton' Excel upload complete!** Here is the first few rows:")
+    st.dataframe(st.session_state.df_karton.head(5))
+
+
+
+
 
 
 if len(st.session_state.df_extracted)>0:
-    if len(st.session_state.df_excel)>0:
-        st.write("3) Merge extracted data and excel:")
-        if st.button("Merge"):  
-            try:
-                st.session_state.df_merged = pd.merge(st.session_state.df_excel, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
-            except:
-                st.warning("Failed to merge the extracted file to the Excel file.")
+    if len(st.session_state.df_minta)>0:
+        if len(st.session_state.df_karton)>0:
+            st.write("4) Merge extracted data and excel files:")
+            if st.button("Merge"):  
+                try:
+                    st.session_state.df_merged = pd.merge(st.session_state.df_minta, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+                except:
+                    st.warning("Failed to merge the extracted file to the Excel file.")
                 
 
 if len(st.session_state.df_merged)>0:
-    st.write("✅ **Merging complete!** Here is the result:")
+    st.write("✅ **Merging complete!** Here are the results:")
     st.dataframe(st.session_state.df_merged)
             
      # Offer CSV download
