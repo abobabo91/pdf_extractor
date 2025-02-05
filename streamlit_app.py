@@ -146,7 +146,7 @@ if st.button("Extract Excel"):
         except:
             st.warning("Failed to extract Excel file.")
     
-if len(st.session_state.df_extracted) > 0:        
+if len(st.session_state.df_excel) > 0:        
     st.write("✅ **Excel upload complete!** Here is the first few rows:")
     st.dataframe(st.session_state.df_excel.head(5))
 
