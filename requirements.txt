@@ -6,3 +6,4 @@ pdf2image
 openai
 openpyxl
 xlsxwriter
+tiktoken

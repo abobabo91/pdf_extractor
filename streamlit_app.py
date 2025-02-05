@@ -7,7 +7,12 @@ import pytesseract
 from io import BytesIO
 import openai
 from openai import OpenAI
+import tiktoken
 
+def count_tokens(text, model="gpt-4o"):
+    encoder = tiktoken.encoding_for_model(model)
+    tokens = encoder.encode(text)
+    return len(tokens)
 
 
 # Initialize session state variables if they don't exist
