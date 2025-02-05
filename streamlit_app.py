@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import os
 import PyPDF2
 import pdf2image
@@ -14,6 +15,14 @@ def count_tokens(text, model="gpt-4o"):
     tokens = encoder.encode(text)
     return len(tokens)
 
+
+def replace_successive_duplicates(df, column_to_compare, columns_to_delete):
+    result = df.copy()
+    col = column_to_compare
+    mask = result[col] == result[col].shift()
+    for col in columns_to_delete:
+        result.loc[mask, col] = np.nan
+    return result
 
 # Initialize session state variables if they don't exist
 if 'extracted_text_from_invoice' not in st.session_state:
@@ -128,6 +137,7 @@ if st.button("Extract Data"):
     if len(st.session_state.extracted_data) != 0:
         st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
         st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
+        st.session_state.df_extracted["1"] = np.nan
 
 if len(st.session_state.df_extracted) > 0:        
     st.write("✅ **Extraction complete!** Here are the results:")
@@ -150,7 +160,7 @@ if len(st.session_state.df_extracted) > 0:
 
 
 #UPLOAD MINTA
-st.write("2) Upload the excel file of the Minta to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name.")
+st.write("2) Upload the excel file of the 'Minta' to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name.")
 uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Minta'", type=["xlsx"], accept_multiple_files=False)  
 
 if st.button("Extract 'Minta'"):  
@@ -160,6 +170,7 @@ if st.button("Extract 'Minta'"):
             st.session_state.df_minta.columns = list(st.session_state.df_minta.iloc[0])
             st.session_state.df_minta = st.session_state.df_minta.iloc[1:]
             st.session_state.df_minta["Bizonylatszám"] = st.session_state.df_minta["Bizonylatszám"].astype(str)
+            st.session_state.df_minta["0"] = np.nan
         except:
             st.warning("Failed to extract Excel file.")
     
@@ -176,8 +187,8 @@ if st.button("Extract 'Karton'"):
     if uploaded_excel_file_karton:
         try:
             st.session_state.df_karton = pd.read_excel(uploaded_excel_file_karton, sheet_name='Munka1')
-            st.session_state.df_karton.columns = list(st.session_state.df_karton.iloc[0])
-            st.session_state.df_karton = st.session_state.df_karton.iloc[1:]
+#            st.session_state.df_karton.columns = list(st.session_state.df_karton.iloc[0])
+#            st.session_state.df_karton = st.session_state.df_karton.iloc[1:]
             st.session_state.df_karton["Bizonylat"] = st.session_state.df_karton["Bizonylat"].astype(str)
         except:
             st.warning("Failed to extract Excel file.")
@@ -187,7 +198,24 @@ if len(st.session_state.df_karton) > 0:
     st.dataframe(st.session_state.df_karton.head(5))
 
 
+asd = """
+df_extracted = pd.read_csv('extract_data.csv')
+df_minta = pd.read_excel('Mintavétel_költségek_Sonneveld és ellenïrzés.xlsx', sheet_name='Mintavétel', skiprows = range(1, 9))
+df_minta.columns = list(df_minta.iloc[0])
+df_minta = df_minta.iloc[1:]
+df_minta["Bizonylatszám"] = df_minta["Bizonylatszám"].astype(str)
+df_karton = pd.read_excel('Könyvelési karton 2023_Sonneveld Kft.xlsx', sheet_name='Munka1')
 
+df_temp = pd.merge(df_minta, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+nr_of_columns = len(df_temp.columns)
+
+df_temp = pd.merge(df_temp, df_karton, how='left', left_on='Bizonylatszám', right_on='Bizonylat')
+
+column_to_compare = 'Bizonylatszám'
+columns_to_delete = df_temp.columns[:nr_of_columns]
+df_merged = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
+
+"""
 
 
 
@@ -197,9 +225,14 @@ if len(st.session_state.df_extracted)>0:
             st.write("4) Merge extracted data and excel files:")
             if st.button("Merge"):  
                 try:
-                    st.session_state.df_merged = pd.merge(st.session_state.df_minta, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+                    df_temp = pd.merge(st.session_state.df_minta, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+                    nr_of_columns = len(df_temp.columns)
+                    df_temp = pd.merge(df_temp, st.session_state.df_karton, how='left', left_on='Bizonylatszám', right_on='Bizonylat')
+                    column_to_compare = 'Bizonylatszám'
+                    columns_to_delete = df_merged.columns[:nr_of_columns]
+                    st.session_state.df_merged = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
                 except:
-                    st.warning("Failed to merge the extracted file to the Excel file.")
+                    st.warning("Failed to merge the extracted file to the Excel files.")
                 
 
 if len(st.session_state.df_merged)>0:

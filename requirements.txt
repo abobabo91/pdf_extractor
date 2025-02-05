@@ -1,5 +1,6 @@
 streamlit
 pandas
+numpy
 PyPDF2
 pytesseract
 pdf2image
