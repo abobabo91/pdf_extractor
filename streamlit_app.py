@@ -196,7 +196,7 @@ if len(st.session_state.df_merged)>0:
         )
         
 price = st.session_state.number_of_tokens * 2.5 / 1000000
-st.write("The total cost of this process so far is: $" + str(price))
+st.write("The total cost of this process so far: $" + str(price))
         
 def count_tokens(text, model="gpt-4o"):
     encoder = tiktoken.encoding_for_model(model)
