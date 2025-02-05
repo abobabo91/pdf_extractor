@@ -151,8 +151,6 @@ if len(st.session_state.df_excel) > 0:
     st.dataframe(st.session_state.df_excel.head(5))
 
 
-
-
 if len(st.session_state.df_extracted)>0:
     if len(st.session_state.df_excel)>0:
         st.write("3) Merge extracted data and excel:")
@@ -162,8 +160,6 @@ if len(st.session_state.df_extracted)>0:
             except:
                 st.warning("Failed to merge the extracted file to the Excel file.")
                 
-
-
 
 if len(st.session_state.df_merged)>0:
     st.write("✅ **Merging complete!** Here is the result:")
@@ -185,8 +181,8 @@ if len(st.session_state.df_merged)>0:
             mime='application/vnd.ms-excel'
         )
         
-    price = st.session_state.number_of_tokens * 2.5 / 1000000
-    st.write("The total cost of this process was: $" + str(price))
+price = st.session_state.number_of_tokens * 2.5 / 1000000
+st.write("The total cost of this process was: $" + str(price))
         
 def count_tokens(text, model="gpt-4o"):
     encoder = tiktoken.encoding_for_model(model)
