@@ -37,6 +37,8 @@ if 'df_karton' not in st.session_state:
     st.session_state.df_karton = pd.DataFrame()
 if 'df_merged' not in st.session_state:
     st.session_state.df_merged = pd.DataFrame()
+if 'df_merged_full' not in st.session_state:
+    st.session_state.df_merged_full = pd.DataFrame()
 if 'number_of_tokens' not in st.session_state:
     st.session_state.number_of_tokens = 0
 
@@ -160,8 +162,8 @@ if len(st.session_state.df_extracted) > 0:
 
 
 #UPLOAD MINTA
-st.write("2) Upload the excel file of the 'Minta' to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name.")
-uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Minta'", type=["xlsx"], accept_multiple_files=False)  
+st.write("2) Upload the excel file of the 'Mintavétel' to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name.")
+uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Mintavétel'", type=["xlsx"], accept_multiple_files=False)  
 
 if st.button("Extract 'Minta'"):  
     if uploaded_excel_file_minta:
@@ -175,7 +177,7 @@ if st.button("Extract 'Minta'"):
             st.warning("Failed to extract Excel file.")
     
 if len(st.session_state.df_minta) > 0:        
-    st.write("✅ **'Minta' Excel upload complete!** Here is the first few rows:")
+    st.write("✅ **'Mintavétel' Excel upload complete!** Here are the first few rows:")
     st.dataframe(st.session_state.df_minta.head(5))
 
 
@@ -194,7 +196,7 @@ if st.button("Extract 'Karton'"):
             st.warning("Failed to extract Excel file.")
     
 if len(st.session_state.df_karton) > 0:        
-    st.write("✅ **'Karton' Excel upload complete!** Here is the first few rows:")
+    st.write("✅ **'Karton' Excel upload complete!** Here are the first few rows:")
     st.dataframe(st.session_state.df_karton.head(5))
 
 
@@ -226,11 +228,12 @@ if len(st.session_state.df_extracted)>0:
             if st.button("Merge"):  
                 try:
                     df_temp = pd.merge(st.session_state.df_minta, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+                    st.session_state.df_merged = df_temp 
                     nr_of_columns = len(df_temp.columns)
                     df_temp = pd.merge(df_temp, st.session_state.df_karton, how='left', left_on='Bizonylatszám', right_on='Bizonylat')
                     column_to_compare = 'Bizonylatszám'
                     columns_to_delete = df_temp.columns[:nr_of_columns]
-                    st.session_state.df_merged = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
+                    st.session_state.df_merged_full = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
                 except:
                     st.warning("Failed to merge the extracted file to the Excel files.")
                 
@@ -241,17 +244,21 @@ if len(st.session_state.df_merged)>0:
             
      # Offer CSV download
     csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download Merged CSV", csv, "invoice_data.csv", "text/csv", key="download-merged-csv")
+    st.download_button("📥 Download Merged CSV", csv, "merged_data.csv", "text/csv", key="download-merged-csv")
+    
+    csv_full = st.session_state.df_merged_full.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download Merged Full CSV", csv_full, "merged_data_full.csv", "text/csv", key="download-merged-full-csv")
     
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         # Write each dataframe to a different worksheet.
-        st.session_state.df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
+        st.session_state.df_merged.to_excel(writer, sheet_name='Munka1', index=False)
+        st.session_state.df_merged_full.to_excel(writer, sheet_name='Munka2', index=False)
         writer.close()
         download2 = st.download_button(
             label="📥 Download Merged Excel",
             data=buffer,
-            file_name='invoice_data.xlsx',
+            file_name='merged_data.xlsx',
             mime='application/vnd.ms-excel'
         )
         
