@@ -21,6 +21,8 @@ if 'df_excel' not in st.session_state:
     st.session_state.df_excel = pd.DataFrame()
 if 'df_merged' not in st.session_state:
     st.session_state.df_merged = pd.DataFrame()
+if 'number_of_tokens' not in st.session_state:
+    st.session_state.number_of_tokens = 0
 
 openai.organization = "org-i7aicv7Qc0PO4hkTCT4N2BqR"
 openai.api_key = st.secrets['openai']["OPENAI_API_KEY"]
@@ -35,7 +37,6 @@ st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevan
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 #1) text extraction from pdf
-asd = 0
 if st.button("Extract Data"):  
     st.session_state.extracted_text_from_invoice = []      
     if uploaded_files:
@@ -90,7 +91,7 @@ if st.button("Extract Data"):
                         5) the total net amount of the invoice, 
                         6) the total VAT (ÁFA in hungarian) of the invoice. 
                         Output these values (1, 2 and 3 as strings, 4, 5 and 6 as integers) separated by ; and nothing else!""")
-    
+            
             try:    
                 client = OpenAI(api_key=openai.api_key)
             
@@ -109,6 +110,7 @@ if st.button("Extract Data"):
                     st.error(f"GPT-4 extraction failed for {file_name}: {e}")
                     continue        
                 st.session_state.extracted_data.append([file_name] + extracted_text.split(";"))
+                st.session_state.number_of_tokens += count_tokens(gpt_prompt)
             
             except Exception as e:
                 st.error(f"GPT-4 extraction failed for {file_name}: {e}")
@@ -148,8 +150,8 @@ if len(st.session_state.df_extracted) > 0:
 
 if len(st.session_state.df_extracted)>0:
     if len(st.session_state.df_excel)>0:
-        st.write("3) Merge the extracted data and the excel:")
-        if st.button("Merge extracted data and excel"):  
+        st.write("3) Merge extracted data and excel:")
+        if st.button("Merge"):  
             try:
                 st.session_state.df_merged = pd.merge(st.session_state.df_excel, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
             except:
@@ -177,3 +179,11 @@ if len(st.session_state.df_merged)>0:
             file_name='invoice_data.xlsx',
             mime='application/vnd.ms-excel'
         )
+        
+    price = st.session_state.number_of_tokens * 2.5 / 1000000
+    st.write("The total cost of this process was: $" + str(price))
+        
+def count_tokens(text, model="gpt-4o"):
+    encoder = tiktoken.encoding_for_model(model)
+    tokens = encoder.encode(text)
+    return len(tokens)
