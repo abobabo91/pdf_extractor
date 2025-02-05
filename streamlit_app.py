@@ -120,9 +120,9 @@ if st.button("Extract Data"):
         st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
         st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
 
-    if len(st.session_state.df_extracted) > 0:        
-        st.write("✅ **Extraction complete!** Here are the results:")
-        st.dataframe(st.session_state.df_extracted)
+if len(st.session_state.df_extracted) > 0:        
+    st.write("✅ **Extraction complete!** Here are the results:")
+    st.dataframe(st.session_state.df_extracted)
 
 
 #0) Drag & Drop File Uploader for excel
@@ -131,16 +131,17 @@ uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accep
 
 if st.button("Extract Excel"):  
     if uploaded_excel_file:
-        st.session_state.df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
-        st.session_state.df_excel.columns = list(st.session_state.df_excel.iloc[0])
-        st.session_state.df_excel = st.session_state.df_excel.iloc[1:]
-        st.session_state.df_excel["Bizonylatszám"] = st.session_state.df_excel["Bizonylatszám"].astype(str)
-    
         try:
-            st.write("✅ **Excel upload complete!** Here is the first few rows:")
-            st.dataframe(st.session_state.df_excel.head(5))
+            st.session_state.df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
+            st.session_state.df_excel.columns = list(st.session_state.df_excel.iloc[0])
+            st.session_state.df_excel = st.session_state.df_excel.iloc[1:]
+            st.session_state.df_excel["Bizonylatszám"] = st.session_state.df_excel["Bizonylatszám"].astype(str)
         except:
             st.warning("Failed to extract Excel file.")
+    
+if len(st.session_state.df_extracted) > 0:        
+    st.write("✅ **Excel upload complete!** Here is the first few rows:")
+    st.dataframe(st.session_state.df_excel.head(5))
 
 
 
@@ -151,24 +152,28 @@ if len(st.session_state.df_extracted)>0:
         if st.button("Merge extracted data and excel"):  
             try:
                 st.session_state.df_merged = pd.merge(st.session_state.df_excel, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
-                st.write("✅ **Merging complete!** Here is the result:")
-                st.dataframe(st.session_state.df_merged)
-                
-                # Offer CSV download
-                csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
-                
-                buffer = BytesIO()
-                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                    # Write each dataframe to a different worksheet.
-                    st.session_state.df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
-                    writer.close()
-                    download2 = st.download_button(
-                        label="📥 Download Excel",
-                        data=buffer,
-                        file_name='invoice_data.xlsx',
-                        mime='application/vnd.ms-excel'
-                    )
             except:
                 st.warning("Failed to merge the extracted file to the Excel file.")
                 
+
+
+
+if len(st.session_state.df_merged)>0:
+    st.write("✅ **Merging complete!** Here is the result:")
+    st.dataframe(st.session_state.df_merged)
+            
+     # Offer CSV download
+    csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+    
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        # Write each dataframe to a different worksheet.
+        st.session_state.df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
+        writer.close()
+        download2 = st.download_button(
+            label="📥 Download Excel",
+            data=buffer,
+            file_name='invoice_data.xlsx',
+            mime='application/vnd.ms-excel'
+        )
