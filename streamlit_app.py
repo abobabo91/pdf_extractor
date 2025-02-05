@@ -53,7 +53,7 @@ st.write("1) Upload one or more **Hungarian invoices (PDFs)** to extract relevan
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 #1) text extraction from pdf
-if st.button("Extract Data"):  
+if st.button("Extract PDFs"):  
     st.session_state.extracted_text_from_invoice = []      
     if uploaded_files:
         if len(uploaded_files) > 50:
@@ -204,7 +204,7 @@ df_minta = pd.read_excel('Mintavétel_költségek_Sonneveld és ellenïrzés.xls
 df_minta.columns = list(df_minta.iloc[0])
 df_minta = df_minta.iloc[1:]
 df_minta["Bizonylatszám"] = df_minta["Bizonylatszám"].astype(str)
-df_karton = pd.read_excel('Könyvelési karton 2023_Sonneveld Kft.xlsx', sheet_name='Munka1')
+df_karton = pd.read_excel('Könyvelési karton 2024_Sonneveld Kft.xlsx', sheet_name='Munka1')
 
 df_temp = pd.merge(df_minta, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
 nr_of_columns = len(df_temp.columns)
@@ -229,7 +229,7 @@ if len(st.session_state.df_extracted)>0:
                     nr_of_columns = len(df_temp.columns)
                     df_temp = pd.merge(df_temp, st.session_state.df_karton, how='left', left_on='Bizonylatszám', right_on='Bizonylat')
                     column_to_compare = 'Bizonylatszám'
-                    columns_to_delete = df_merged.columns[:nr_of_columns]
+                    columns_to_delete = df_temp.columns[:nr_of_columns]
                     st.session_state.df_merged = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
                 except:
                     st.warning("Failed to merge the extracted file to the Excel files.")
