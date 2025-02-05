@@ -131,13 +131,11 @@ if len(st.session_state.df_extracted) > 0:
     st.write("✅ **Extraction complete!** Here are the results:")
     st.dataframe(st.session_state.df_extracted)
 
-     # Offer CSV download
     extract_csv = st.session_state.df_extracted.to_csv(index=False).encode("utf-8")
     st.download_button("📥 Download Extract CSV", extract_csv, "extract_data.csv", "text/csv", key="download-csv")
     
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        # Write each dataframe to a different worksheet.
         st.session_state.df_extracted.to_excel(writer, sheet_name='Sheet1', index=False)
         writer.close()
         download2 = st.download_button(
