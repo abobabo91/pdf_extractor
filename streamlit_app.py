@@ -132,7 +132,7 @@ if len(st.session_state.df_extracted) > 0:
     st.dataframe(st.session_state.df_extracted)
 
     extract_csv = st.session_state.df_extracted.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download Extract CSV", extract_csv, "extract_data.csv", "text/csv", key="download-csv")
+    st.download_button("📥 Download Extract CSV", extract_csv, "extract_data.csv", "text/csv", key="download-excel-csv")
     
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
@@ -181,7 +181,7 @@ if len(st.session_state.df_merged)>0:
             
      # Offer CSV download
     csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download Merged CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
+    st.download_button("📥 Download Merged CSV", csv, "invoice_data.csv", "text/csv", key="download-merged-csv")
     
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
