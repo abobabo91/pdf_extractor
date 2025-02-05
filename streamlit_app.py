@@ -9,6 +9,19 @@ import openai
 from openai import OpenAI
 
 
+
+# Initialize session state variables if they don't exist
+if 'extracted_text_from_invoice' not in st.session_state:
+    st.session_state.extracted_text_from_invoice = []
+if 'extracted_data' not in st.session_state:
+    st.session_state.extracted_data = []
+if 'df_extracted' not in st.session_state:
+    st.session_state.df_extracted = pd.DataFrame()
+if 'df_excel' not in st.session_state:
+    st.session_state.df_excel = pd.DataFrame()
+if 'df_merged' not in st.session_state:
+    st.session_state.df_merged = pd.DataFrame()
+
 openai.organization = "org-i7aicv7Qc0PO4hkTCT4N2BqR"
 openai.api_key = st.secrets['openai']["OPENAI_API_KEY"]
 
@@ -28,7 +41,7 @@ uploaded_excel_file = st.file_uploader("Upload Excel file", type=["xlsx"], accep
 #1) text extraction from pdf
 asd = 0
 if st.button("Extract Data"):  
-    extracted_text_from_invoice = []      
+    st.session_state.extracted_text_from_invoice = []      
     if uploaded_files:
         if len(uploaded_files) > 50:
             st.write("Parsing the first 50 files.")
@@ -59,18 +72,18 @@ if st.button("Extract Data"):
                 st.write(file_name + " file is too big. Only parsing the first 5000 characters.")
                 pdf_content = pdf_content[:5000]
             
-            extracted_text_from_invoice.append([file_name, pdf_content])
+            st.session_state.extracted_text_from_invoice.append([file_name, pdf_content])
 
     else:
         st.warning("⚠️ Please upload at least one PDF file.")
 
 
     #2) data extraction from text
-    extracted_data = []
-    if extracted_text_from_invoice:    
-        for i in range(len(extracted_text_from_invoice)):
-            file_name = extracted_text_from_invoice[i][0]
-            pdf_content = extracted_text_from_invoice[i][1]
+    st.session_state.extracted_data = []
+    if st.session_state.extracted_text_from_invoice:    
+        for i in range(len(st.session_state.extracted_text_from_invoice)):
+            file_name = st.session_state.extracted_text_from_invoice[i][0]
+            pdf_content = st.session_state.extracted_text_from_invoice[i][1]
             
             gpt_prompt = ("""I send you an extract of a pdf bill invoice in hungarian. Your job is to find the final several data from the invoice: """ 
                         + pdf_content +  """. Output the following in order: 
@@ -99,7 +112,7 @@ if st.button("Extract Data"):
                 if len(extracted_text.split(";")) != 6:
                     st.error(f"GPT-4 extraction failed for {file_name}: {e}")
                     continue        
-                extracted_data.append([file_name] + extracted_text.split(";"))
+                st.session_state.extracted_data.append([file_name] + extracted_text.split(";"))
             
             except Exception as e:
                 st.error(f"GPT-4 extraction failed for {file_name}: {e}")
@@ -107,42 +120,42 @@ if st.button("Extract Data"):
             
             st.write(file_name + " is being extracted.")
 
-    if len(extracted_data) != 0:
-        df_extracted = pd.DataFrame(extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
-        df_extracted["Számlaszám"] = df_extracted["Számlaszám"].astype(str)
+    if len(st.session_state.extracted_data) != 0:
+        st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
+        st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
 
-    if len(df_extracted) > 0:        
+    if len(st.session_state.df_extracted) > 0:        
         st.write("✅ **Extraction complete!** Here are the results:")
-        st.dataframe(df_extracted)
+        st.dataframe(st.session_state.df_extracted)
 
 
     if uploaded_excel_file:
-        df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
-        df_excel.columns = list(df_excel.iloc[0])
-        df_excel = df_excel.iloc[1:]
-        df_excel["Bizonylatszám"] = df_excel["Bizonylatszám"].astype(str)
+        st.session_state.df_excel = pd.read_excel(uploaded_excel_file, sheet_name='Mintavétel', skiprows = range(1, 9))
+        st.session_state.df_excel.columns = list(st.session_state.df_excel.iloc[0])
+        st.session_state.df_excel = st.session_state.df_excel.iloc[1:]
+        st.session_state.df_excel["Bizonylatszám"] = st.session_state.df_excel["Bizonylatszám"].astype(str)
 
         try:
             st.write("✅ **Excel upload complete!** Here is the first few rows:")
-            st.dataframe(df_excel.head(5))
+            st.dataframe(st.session_state.df_excel.head(5))
         except:
             st.warning("Failed to extract Excel file.")
 
-    if len(df_extracted)>0:
-        if len(df_excel)>0:
+    if len(st.session_state.df_extracted)>0:
+        if len(st.session_state.df_excel)>0:
             st.write("Merging the extracted data and the excel:")
             
-            df_merged = pd.merge(df_excel, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
-            st.dataframe(df_merged)
+            st.session_state.df_merged = pd.merge(st.session_state.df_excel, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+            st.dataframe(st.session_state.df_merged)
             
             # Offer CSV download
-            csv = df_merged.to_csv(index=False).encode("utf-8")
+            csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
             st.download_button("📥 Download CSV", csv, "invoice_data.csv", "text/csv", key="download-csv")
             
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                 # Write each dataframe to a different worksheet.
-                df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
+                st.session_state.df_merged.to_excel(writer, sheet_name='Sheet1', index=False)
                 writer.close()
                 download2 = st.download_button(
                     label="📥 Download Excel",
