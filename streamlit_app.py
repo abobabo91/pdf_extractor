@@ -110,7 +110,7 @@ if st.button("Extract PDFs"):
                         6) the total net amount of the invoice, 
                         7) the total VAT (ÁFA in hungarian) of the invoice,
                         8) the currency used on the invoice (HUF or EUR),
-                        9) the EUR to HUF currency exchange rate (If the invoice is in HUF, than write 1).
+                        9) the HUF/EUR currency exchange rate (if the invoice is in HUF, than write 1).
                         Be careful that in Hungarian the decimal separator is ',' instead of '.', and the thousands separator is '.', instead of ','.
                         Output these values (1, 2, 3 and 4 as strings, 5, 6, 7 and 9 as floats) separated by ; and nothing else!""")
             
@@ -129,6 +129,7 @@ if st.button("Extract PDFs"):
                 extracted_text = response.choices[0].message.content.strip()
                 
                 if len(extracted_text.split(";")) != 9:
+                    st.write(extracted_text)
                     st.error(f"GPT-4 extraction failed for {file_name}")
                     continue        
                 st.session_state.extracted_data.append([file_name] + extracted_text.split(";"))
