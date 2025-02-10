@@ -122,7 +122,7 @@ if st.button("Extract PDFs"):
                     messages=[
                     {"role": "system", "content": ""},
                     {"role": "user", "content": gpt_prompt}],
-                    max_tokens = 50,
+                    max_tokens = 150,
                     temperature=0,
                     timeout=30)
                 
