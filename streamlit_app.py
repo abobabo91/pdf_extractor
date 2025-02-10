@@ -112,7 +112,7 @@ if st.button("Extract PDFs"):
                         8) the currency used on the invoice (HUF or EUR),
                         9) the HUF/EUR currency exchange rate (if the invoice is in HUF, than write 1).
                         Be careful that in Hungarian the decimal separator is ',' instead of '.', and the thousands separator is '.', instead of ','.
-                        Output these values (1, 2, 3 and 4 as strings, 5, 6, 7 and 9 as floats) separated by ; and nothing else!""")
+                        Output these 9 values (1, 2, 3, 4 and 8 as strings, 5, 6, 7 and 9 as integers) separated by ; and nothing else!""")
             
             try:    
                 client = OpenAI(api_key=openai.api_key)
