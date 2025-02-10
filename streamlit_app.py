@@ -89,13 +89,17 @@ if st.button("Extract Data"):
             
             gpt_prompt = ("""I send you an extract of a pdf bill invoice in hungarian. Your job is to find the final several data from the invoice: """ 
                         + pdf_content +  """. Output the following in order: 
-                        1) the name of the partner, 
-                        2) the invoice number, 
-                        3) the date of the invoice,
-                        4) the total gross amount of the full invoice, 
-                        5) the total net amount of the invoice, 
-                        6) the total VAT (ÁFA in hungarian) of the invoice. 
-                        Output these values (1, 2 and 3 as strings, 4, 5 and 6 as integers) separated by ; and nothing else!""")
+                        1) the name of the seller, 
+                        2) the name of the buyer, 
+                        3) the invoice number, 
+                        4) the date of the invoice,
+                        5) the total gross amount of the full invoice, 
+                        6) the total net amount of the invoice, 
+                        7) the total VAT (ÁFA in hungarian) of the invoice,
+                        8) the currency used on the invoice (HUF or EUR),
+                        9) the EUR to HUF currency exchange rate (If the invoice is in HUF, than write 1).
+                        Be careful that in Hungarian the decimal separator is ',' instead of '.', and the thousands separator is '.', instead of ','.
+                        Output these values (1, 2, 3 and 4 as strings, 5, 6, 7 and 9 as floats) separated by ; and nothing else!""")
             
             try:    
                 client = OpenAI(api_key=openai.api_key)
@@ -124,7 +128,7 @@ if st.button("Extract Data"):
             st.write(file_name + " is being extracted.")
 
     if len(st.session_state.extracted_data) != 0:
-        st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Partner Név", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
+        st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Eladó", "Vevő", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
         st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
 
 if len(st.session_state.df_extracted) > 0:        
