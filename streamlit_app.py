@@ -128,8 +128,8 @@ if st.button("Extract PDFs"):
                 
                 extracted_text = response.choices[0].message.content.strip()
                 
-                if len(extracted_text.split(";")) != 6:
-                    st.error(f"GPT-4 extraction failed for {file_name}: {e}")
+                if len(extracted_text.split(";")) != 9:
+                    st.error(f"GPT-4 extraction failed for {file_name}")
                     continue        
                 st.session_state.extracted_data.append([file_name] + extracted_text.split(";"))
                 st.session_state.number_of_tokens += count_tokens(gpt_prompt)
@@ -141,7 +141,7 @@ if st.button("Extract PDFs"):
             st.write(file_name + " is being extracted.")
 
     if len(st.session_state.extracted_data) != 0:
-        st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Eladó", "Vevő", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA"])
+        st.session_state.df_extracted = pd.DataFrame(st.session_state.extracted_data, columns=["Fájlnév", "Eladó", "Vevő", "Számlaszám", "Számla Kelte", "Bruttó ár", "Nettó ár", "ÁFA", "Deviza", "Árfolyam"])
         st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
         st.session_state.df_extracted["1"] = np.nan
 
