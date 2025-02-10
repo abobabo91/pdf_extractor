@@ -109,8 +109,8 @@ if st.button("Extract PDFs"):
                         5) the total gross amount of the full invoice, 
                         6) the total net amount of the invoice, 
                         7) the total VAT (ÁFA in hungarian) of the invoice,
-                        8) the currency used on the invoice (HUF or EUR),
-                        9) the HUF/EUR currency exchange rate (if the invoice is in HUF, than write 1).
+                        8) the currency used on the invoice (Ft or Eur),
+                        9) the HUF/EUR currency exchange rate (if the invoice is in Ft, than write 1).
                         Be careful that in Hungarian the decimal separator is ',' instead of '.', and the thousands separator is '.', instead of ','.
                         Output these 9 values (1, 2, 3, 4 and 8 as strings, 5, 6, 7 and 9 as integers) separated by ; and nothing else!""")
             
