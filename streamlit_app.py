@@ -168,7 +168,7 @@ if len(st.session_state.df_extracted) > 0:
 
 #UPLOAD MINTA
 st.write("2) Upload the excel file of the 'Mintavétel' to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name.")
-uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Mintavétel'", type=["xlsx"], accept_multiple_files=False)  
+uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Mintavétel'", type=["xlsx", "XLSX"], accept_multiple_files=False)  
 
 if st.button("Extract 'Minta'"):  
     if uploaded_excel_file_minta:
