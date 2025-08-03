@@ -33,6 +33,8 @@ if 'df_extracted' not in st.session_state:
     st.session_state.df_extracted = pd.DataFrame()
 if 'df_minta' not in st.session_state:
     st.session_state.df_minta = pd.DataFrame()
+if 'df_nav' not in st.session_state:
+    st.session_state.df_nav = pd.DataFrame()
 if 'df_karton' not in st.session_state:
     st.session_state.df_karton = pd.DataFrame()
 if 'df_merged' not in st.session_state:
@@ -166,6 +168,7 @@ if len(st.session_state.df_extracted) > 0:
 
 
 
+
 #UPLOAD MINTA
 st.write("2) Upload the excel file of the 'Mintavétel' to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 10. row and the 'Bizonylatszám' column has this exact name. Also make sure that the file extension is .xlsx and not .XLSX!")
 uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Mintavétel'", type=["xlsx", "XLSX"], accept_multiple_files=False)  
@@ -173,7 +176,7 @@ uploaded_excel_file_minta = st.file_uploader("Upload Excel file of the 'Mintavé
 if st.button("Extract 'Minta'"):  
     if uploaded_excel_file_minta:
         try:
-            st.session_state.df_minta = pd.read_excel(uploaded_excel_file_minta, sheet_name='Mintavétel', skiprows = range(1, 9))
+            st.session_state.df_minta = pd.read_excel(uploaded_excel_file_minta, skiprows = range(1, 9))
             st.session_state.df_minta.columns = list(st.session_state.df_minta.iloc[0])
             st.session_state.df_minta = st.session_state.df_minta.iloc[1:]
             st.session_state.df_minta["Bizonylatszám"] = st.session_state.df_minta["Bizonylatszám"].astype(str)
@@ -186,14 +189,34 @@ if len(st.session_state.df_minta) > 0:
     st.dataframe(st.session_state.df_minta.head(5))
 
 
+#asd = pd.read_excel('NAV online számla transinvest_excel.xlsx', skiprows = 5)
+#UPLOAD NAV
+st.write("2) Upload the excel file of the 'NAV' to verify the results. Make sure that the sheet name is 'Mintavétel' in the file, the data starts in the 6. row and the 'számlasorszám' column has this exact name. Also make sure that the file extension is .xlsx and not .XLSX!")
+uploaded_excel_file_nav = st.file_uploader("Upload Excel file of the 'NAV'", type=["xlsx", "XLSX"], accept_multiple_files=False)  
+
+if st.button("Extract 'NAV'"):  
+    if uploaded_excel_file_nav:
+        try:
+            st.session_state.df_nav = pd.read_excel(uploaded_excel_file_nav, skiprows = 5)
+            st.session_state.df_nav["számlasorszám"] = st.session_state.df_nav["számlasorszám"].astype(str)
+        except:
+            st.warning("Failed to extract Excel file.")
+    
+if len(st.session_state.df_nav) > 0:        
+    st.write("✅ **'Mintavétel' Excel upload complete!** Here are the first few rows:")
+    st.dataframe(st.session_state.df_nav.head(5))
+
+
 #UPLOAD KARTON
 st.write("3) Upload the excel sheet of the 'Karton'. Make sure that the data starts in at the A1 cell, the sheet name is Munka1 and the 'Bizonylat' column has this exact name.")
-uploaded_excel_file_karton = st.file_uploader("Upload Excel file of the 'Karton'", type=["xlsx"], accept_multiple_files=False)  
+uploaded_excel_file_karton = st.file_uploader("Upload Excel file of the 'Karton'", type=["xlsx", 'XLSX', 'xls'], accept_multiple_files=False)  
+
+
 
 if st.button("Extract 'Karton'"):  
     if uploaded_excel_file_karton:
         try:
-            st.session_state.df_karton = pd.read_excel(uploaded_excel_file_karton, sheet_name='Munka1')
+            st.session_state.df_karton = pd.read_excel(uploaded_excel_file_karton)
 #            st.session_state.df_karton.columns = list(st.session_state.df_karton.iloc[0])
 #            st.session_state.df_karton = st.session_state.df_karton.iloc[1:]
             st.session_state.df_karton["Bizonylat"] = st.session_state.df_karton["Bizonylat"].astype(str)
@@ -204,25 +227,6 @@ if len(st.session_state.df_karton) > 0:
     st.write("✅ **'Karton' Excel upload complete!** Here are the first few rows:")
     st.dataframe(st.session_state.df_karton.head(5))
 
-
-asd = """
-df_extracted = pd.read_csv('extract_data.csv')
-df_minta = pd.read_excel('Mintavétel_költségek_Sonneveld és ellenïrzés.xlsx', sheet_name='Mintavétel', skiprows = range(1, 9))
-df_minta.columns = list(df_minta.iloc[0])
-df_minta = df_minta.iloc[1:]
-df_minta["Bizonylatszám"] = df_minta["Bizonylatszám"].astype(str)
-df_karton = pd.read_excel('Könyvelési karton 2024_Sonneveld Kft.xlsx', sheet_name='Munka1')
-
-df_temp = pd.merge(df_minta, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
-nr_of_columns = len(df_temp.columns)
-
-df_temp = pd.merge(df_temp, df_karton, how='left', left_on='Bizonylatszám', right_on='Bizonylat')
-
-column_to_compare = 'Bizonylatszám'
-columns_to_delete = df_temp.columns[:nr_of_columns]
-df_merged = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
-
-"""
 
 
 
@@ -270,7 +274,23 @@ if len(st.session_state.df_merged)>0:
 price = st.session_state.number_of_tokens * 2.5 / 1000000
 st.write("The total cost of this process so far: $" + str(price))
         
-def count_tokens(text, model="gpt-4o"):
-    encoder = tiktoken.encoding_for_model(model)
-    tokens = encoder.encode(text)
-    return len(tokens)
+
+
+local_test = """
+df_extracted = pd.read_csv('extract_data.csv')
+df_minta = pd.read_excel('Mintavétel_költségek_Sonneveld és ellenïrzés.xlsx', sheet_name='Mintavétel', skiprows = range(1, 9))
+df_minta.columns = list(df_minta.iloc[0])
+df_minta = df_minta.iloc[1:]
+df_minta["Bizonylatszám"] = df_minta["Bizonylatszám"].astype(str)
+df_karton = pd.read_excel('Könyvelési karton 2024_Sonneveld Kft.xlsx', sheet_name='Munka1')
+
+df_temp = pd.merge(df_minta, df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
+nr_of_columns = len(df_temp.columns)
+
+df_temp = pd.merge(df_temp, df_karton, how='left', left_on='Bizonylatszám', right_on='Bizonylat')
+
+column_to_compare = 'Bizonylatszám'
+columns_to_delete = df_temp.columns[:nr_of_columns]
+df_merged = replace_successive_duplicates(df_temp, column_to_compare, columns_to_delete)
+
+"""
