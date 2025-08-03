@@ -32,7 +32,7 @@ def extract_text_from_pdf(uploaded_file):
 
     try:
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
-        for page in pdf_reader.pages:
+        for page in pdf_reader.pages[:]:
             pdf_content += page.extract_text() or ""
     except Exception as e:
         st.error(f"Hiba a(z) {file_name} fájl olvasásakor: {e}")
@@ -55,23 +55,31 @@ def extract_text_from_pdf(uploaded_file):
 
     return pdf_content
 
-
 def generate_gpt_prompt(text):
-    """Összeállítja a promptot a GPT számára."""
-    return ("""I send you an extract of a pdf bill invoice in Hungarian. It may contain several invoices merged into one pdf. Your job is to find several data from the invoice/invoices: """ 
-            + text +  """. Output the following in order: 
-            1) the name of the seller, 
-            2) the name of the buyer, 
-            3) the invoice number, 
-            4) the date of the invoice,
-            5) the total gross amount of the full invoice, 
-            6) the total net amount of the invoice, 
-            7) the total VAT (ÁFA in Hungarian) of the invoice,
-            8) the currency used on the invoice (Ft or Eur),
-            9) the HUF/EUR currency exchange rate (if the invoice is in Ft, then write 1).
-            Be careful that in Hungarian the decimal separator is ',' instead of '.', and the thousands separator is '.', instead of ','.
-            Output these 9 values (1, 2, 3, 4 and 8 as strings, 5, 6, 7 and 9 as integers) separated by ; and each invoice in new line as many invoices there are and nothing else!""")
-
+    """Generates a clear, structured GPT prompt for invoice data extraction."""
+    return (
+        "You are given the extracted text of a Hungarian invoice PDF. "
+        "The PDF may contain multiple invoices merged together. "
+        "Your task is to extract the following **9 data fields** for each invoice:\n\n"
+        "1. Seller name (string)\n"
+        "2. Buyer name (string)\n"
+        "3. Invoice number (string)\n"
+        "4. Invoice date (string, e.g. '2024.04.01')\n"
+        "5. Total gross amount (integer)\n"
+        "6. Total net amount (integer)\n"
+        "7. VAT amount (integer)\n"
+        "8. Currency (string: 'HUF' or 'EUR')\n"
+        "9. Exchange rate (integer, use 1 if invoice is in HUF)\n\n"
+        "**Important formatting instructions:**\n"
+        "- Use semicolon (`;`) to separate the 9 fields.\n"
+        "- Use **one line per invoice**.\n"
+        "- Do **not** include field numbers (e.g. '1)', '2)' etc.) in the output.\n"
+        "- Write all numeric fields as plain integers (e.g. `1500000`).\n"
+        "- **Do not use thousands separators** (e.g. `.`) or decimal commas (`,`).\n"
+        "- Do **not** include any explanation, headings, or extra text — just the data rows.\n\n"
+        "Extracted text:\n"
+        f"{text}"
+    )
 
 
 def extract_data_with_gpt(file_name, text):
@@ -112,6 +120,80 @@ def extract_data_with_gpt(file_name, text):
         return [], 0
 
 
+def normalize_number(value):
+    """Converts numeric-looking strings or floats to int. Removes all formatting."""
+    try:
+        if pd.isna(value):
+            return None
+        if isinstance(value, (int, float)):
+            return int(round(value))
+        # Remove thousands separators ('.' or ',' or space), allow decimals
+        cleaned = str(value).replace(" ", "").replace(",", "").replace(".", "")
+        return int(cleaned)
+    except:
+        return None
+
+
+
+def compare_with_tolerance(val1, val2, tolerance=500):
+    try:
+        val1 = normalize_number(val1)
+        val2 = normalize_number(val2)
+        if val1 is None or val2 is None:
+            return False
+        return abs(val1 - val2) <= tolerance
+    except:
+        return False
+
+def get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"):
+    """Returns the value in correct currency column based on Devizanem."""
+    try:
+        dev = str(row[currency_col]).strip().upper()
+        if dev == "EUR":
+            return normalize_number(row[eur_col])
+        else:
+            return normalize_number(row[huf_col])
+    except:
+        return None
+
+
+def compare_gpt_with_minta(df_minta, df_extracted, invoice_col_minta="Bizonylatszám", invoice_col_extracted="Számlaszám", tolerance=5):
+    # Merge on invoice number
+    df_merged = pd.merge(df_minta, df_extracted, how="outer", left_on=invoice_col_minta, right_on=invoice_col_extracted)
+
+    # Compare amounts
+    df_merged["Bruttó egyezik?"] = df_merged.apply(
+        lambda row: compare_with_tolerance(
+            get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
+            normalize_number(row["Bruttó ár"]),
+            tolerance
+        ),
+        axis=1
+    )
+
+    # Optional: add summary column
+    df_merged["Minden egyezik?"] = df_merged["Bruttó egyezik?"].apply(lambda x: "✅ Igen" if x else "❌ Nem")
+
+    return df_merged
+
+
+def merge_with_minta(df_extracted, df_minta, invoice_col_extracted="Számlaszám", invoice_col_minta="Bizonylatszám"):
+    df_merged = pd.merge(df_minta, df_extracted, how='outer', left_on=invoice_col_minta, right_on=invoice_col_extracted)
+    matched = df_merged[invoice_col_extracted].notna().sum()
+    total = len(df_minta)
+    unmatched = total - matched
+    match_rate = round(100 * matched / total, 2)
+    
+    stats = {
+        "Összes minta sor": total,
+        "Találatok száma": matched,
+        "Hiányzó találatok": unmatched,
+        "Egyezési arány (%)": match_rate
+    }
+
+    return df_merged, stats
+
+
 
 # Inicializáljuk a session state változókat
 if 'extracted_text_from_invoice' not in st.session_state:
@@ -149,7 +231,7 @@ with col_pdf:
     uploaded_files = st.file_uploader("📤 PDF fájlok feltöltése", type=["pdf"], accept_multiple_files=True)
     
     # 1) PDF feldolgozás
-    if st.button("📑 Szövegkinyerés a PDF-ből"):  
+    if st.button("📑 Adatkinyerés a PDF-ből"):  
         st.session_state.extracted_text_from_invoice = []      
         if uploaded_files:
             if len(uploaded_files) > 100:
@@ -290,42 +372,229 @@ with col_excel:
         st.dataframe(st.session_state.df_karton.head(5))
  
     
-st.subheader("📂 A kinyert adatok és az Excel fájlok összefűzése")
+ 
+st.title("📄 Ellenőrzések")
 
-# Összefűzés
-if len(st.session_state.df_extracted) > 0 and len(st.session_state.df_minta) > 0 and len(st.session_state.df_karton) > 0:
-    st.write("4) Kinyert adatok és Excel fájlok összefűzése:")
-    if st.button("🔗 Összefűzés"):  
+col_left, col_right = st.columns([1, 1])  # nagyobb bal oldali hasáb
+
+with col_left:
+    st.subheader("📎 Kinyert adatok összefűzése és ellenőrzése: Mintavétel")
+    
+    invoice_colname_minta = "Bizonylatszám"
+    
+    if st.button("🔗 Összefűzés és ellenőrzés a Mintavétel excellel"):
         try:
-            df_temp = pd.merge(st.session_state.df_minta, st.session_state.df_extracted, how='outer', left_on='Bizonylatszám', right_on='Számlaszám')
-            st.session_state.df_merged = df_temp 
-            nr_of_columns = len(df_temp.columns)
-            df_temp = pd.merge(df_temp, st.session_state.df_karton, how='left', left_on='Bizonylatszám', right_on=invoice_colname_karton)
-            st.session_state.df_merged_full = replace_successive_duplicates(df_temp, 'Bizonylatszám', df_temp.columns[:nr_of_columns])
-        except:
-            st.warning("❌ Hiba történt az összefűzés során.")
-
-if len(st.session_state.df_merged) > 0:
-    st.write("✅ **Összefűzés kész!**")
-    st.dataframe(st.session_state.df_merged)
-
-    csv = st.session_state.df_merged.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Összefűzött adatok letöltése (CSV)", csv, "osszeadott_adatok.csv", "text/csv", key="download-merged-csv")
+            df_minta = st.session_state.df_minta.copy()
+            df_minta.columns = df_minta.columns.str.strip()
+            df_minta[invoice_colname_minta] = df_minta[invoice_colname_minta].astype(str)
     
-    csv_full = st.session_state.df_merged_full.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Teljes összefűzött adatok (CSV)", csv_full, "osszeadott_teljes.csv", "text/csv", key="download-merged-full-csv")
+            df_gpt = st.session_state.df_extracted.copy()
+            df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
     
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        st.session_state.df_merged.to_excel(writer, sheet_name='Munka1', index=False)
-        st.session_state.df_merged_full.to_excel(writer, sheet_name='Munka2', index=False)
-        writer.close()
+            # ⬅️ GPT balra, Minta jobbra
+            df_merged_minta = pd.merge(
+                df_gpt,
+                df_minta,
+                how="left",
+                left_on="Számlaszám",
+                right_on=invoice_colname_minta
+            )
+    
+            # ✅ Csak bruttó érték összehasonlítás (nettó, áfa nincs a mintában)
+            df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
+                lambda row: compare_with_tolerance(
+                    get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
+                    normalize_number(row["Nettó ár"]),
+                    tolerance=5
+                ),
+                axis=1
+            )
+    
+            df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].apply(
+                lambda x: "✅ Igen" if x else "❌ Nem"
+            )
+    
+            st.session_state.df_merged_minta = df_merged_minta
+    
+            # 📊 Statisztika
+            total = len(df_merged_minta)
+            matched = (df_merged_minta["Minden egyezik?"] == "✅ Igen").sum()
+            unmatched = total - matched
+            match_rate = round(100 * matched / total, 2)
+    
+            st.session_state.stats_minta = {
+                "Összes számla": total,
+                "Minden egyezés": matched,
+                "Egyezési arány (%)": match_rate
+            }
+    
+            st.success("✅ Összefűzés és ellenőrzés a Mintavétellel sikeres!")
+    
+        except Exception as e:
+            st.error(f"❌ Hiba történt a Mintavétel összefűzés során: {e}")
+    
+    if "df_merged_minta" in st.session_state:
+        st.write("📄 **Összefűzött és ellenőrzött táblázat – Mintavétel:**")
+        st.dataframe(st.session_state.df_merged_minta)
+    
+        csv_minta = st.session_state.df_merged_minta.to_csv(index=False).encode("utf-8")
+    
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            st.session_state.df_merged_minta.to_excel(writer, sheet_name='Minta', index=False)
+            writer.close()
+            st.download_button(
+                label="📥 Letöltés Excel (Mintavétel)",
+                data=buffer,
+                file_name='merged_minta.xlsx',
+                mime='application/vnd.ms-excel'
+            )
+    
+        st.markdown("### 📊 Statisztika – Mintavétel ellenőrzés")
+        for k, v in st.session_state.stats_minta.items():
+            st.write(f"**{k}:** {v}")
+    
+
+
+with col_right:
+    st.subheader("📎 Kinyert adatok összefűzése és ellenőrzése: NAV")
+    
+    if st.button("🔗 Összefűzés és ellenőrzés a NAV excellel"):
+        try:
+            df_nav = st.session_state.df_nav.copy()
+            df_nav.columns = df_nav.columns.str.strip()
+            df_nav["számlasorszám"] = df_nav["számlasorszám"].astype(str)
+    
+            df_gpt = st.session_state.df_extracted.copy()
+            df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
+    
+            df_merged_nav = pd.merge(
+                df_gpt,
+                df_nav,
+                how="left",
+                left_on="Számlaszám",
+                right_on="számlasorszám"
+            )
+    
+            # Összegellenőrzés
+            df_merged_nav["Bruttó egyezik?"] = df_merged_nav.apply(
+                lambda row: compare_with_tolerance(
+                    normalize_number(row.get("bruttó érték") or row.get("bruttó érték Ft")),
+                    normalize_number(row["Bruttó ár"]),
+                ),
+                axis=1
+            )
+    
+            df_merged_nav["Nettó egyezik?"] = df_merged_nav.apply(
+                lambda row: compare_with_tolerance(
+                    normalize_number(row.get("nettóérték") or row.get("nettóérték Ft")),
+                    normalize_number(row["Nettó ár"]),
+                ),
+                axis=1
+            )
+    
+            df_merged_nav["ÁFA egyezik?"] = df_merged_nav.apply(
+                lambda row: compare_with_tolerance(
+                    normalize_number(row.get("adóérték") or row.get("adóérték Ft")),
+                    normalize_number(row["ÁFA"]),
+                ),
+                axis=1
+            )
+    
+            df_merged_nav["Minden egyezik?"] = df_merged_nav.apply(
+                lambda row: "✅ Igen" if row["Bruttó egyezik?"] and row["Nettó egyezik?"] and row["ÁFA egyezik?"] else "❌ Nem",
+                axis=1
+            )
+    
+            st.session_state.df_merged_nav = df_merged_nav
+    
+            # Statisztika
+            total = len(df_merged_nav)
+            matched_all = (df_merged_nav["Minden egyezik?"] == "✅ Igen").sum()
+            unmatched = total - matched_all
+            match_rate = round(100 * matched_all / total, 2)
+    
+            st.session_state.stats_nav = {
+                "Összes számla": total,
+                "Minden egyezés": matched_all,
+                "Teljes egyezési arány (%)": match_rate
+            }
+    
+            st.success("✅ NAV fájllal való összefűzés és ellenőrzés kész!")
+    
+        except Exception as e:
+            st.error(f"❌ Hiba történt a NAV összefűzés során: {e}")
+    
+    if "df_merged_nav" in st.session_state:
+        st.write("📄 **Összefűzött és ellenőrzött táblázat – NAV:**")
+        st.dataframe(st.session_state.df_merged_nav)
+    
+        # Excel letöltés előkészítés
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            st.session_state.df_merged_nav.to_excel(writer, sheet_name='NAV összehasonlítás', index=False)
+            writer.close()
+    
         st.download_button(
-            label="📥 Letöltés Excel formátumban",
+            label="📥 Letöltés Excel (NAV)",
             data=buffer,
-            file_name='osszeadott_adatok.xlsx',
-            mime='application/vnd.ms-excel'
+            file_name="merged_nav.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+    
+        st.markdown("### 📊 Statisztika – NAV összehasonlítás")
+        for k, v in st.session_state.stats_nav.items():
+            st.write(f"**{k}:** {v}")
+    
+
+
+
+asdd = """
+st.subheader("📎 Kinyert adatok összefűzése: Karton EZT EGYELŐRE NEM CSINÁLTAM MEG")
+
+if st.button("🔗 Összefűzés a Kartonnal"):
+    try:
+        df_merged_karton = pd.merge(
+            st.session_state.df_extracted,
+            st.session_state.df_karton,
+            how="left",
+            left_on="Számlaszám",
+            right_on=invoice_colname_karton
+        )
+
+        matched_karton = df_merged_karton[invoice_colname_karton].notna().sum()
+        total_karton = len(st.session_state.df_extracted)
+        unmatched_karton = total_karton - matched_karton
+        match_rate_karton = round(100 * matched_karton / total_karton, 2)
+
+        st.session_state.df_merged_karton = df_merged_karton
+        st.session_state.stats_karton = {
+            "Összes számla": total_karton,
+            "Karton egyezés": matched_karton,
+            "Hiányzó egyezés": unmatched_karton,
+            "Egyezési arány (%)": match_rate_karton
+        }
+
+        st.success("✅ Karton összefűzés kész!")
+
+    except Exception as e:
+        st.error(f"❌ Hiba történt a Karton összefűzés során: {e}")
+
+if "df_merged_karton" in st.session_state:
+    st.write("📄 **Összefűzött táblázat – Karton:**")
+    st.dataframe(st.session_state.df_merged_karton)
+
+    csv_karton = st.session_state.df_merged_karton.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Letöltés CSV (Karton)", csv_karton, "merged_karton.csv", "text/csv")
+
+    st.markdown("### 📊 Statisztika – Karton összefűzés")
+    for k, v in st.session_state.stats_karton.items():
+        st.write(f"**{k}:** {v}")
+"""
+
+
+
+
 
 
 
