@@ -10,6 +10,7 @@ from io import BytesIO
 import openai
 from openai import OpenAI
 import tiktoken
+import re
 
 def count_tokens(text, model="gpt-4o"):
     encoder = tiktoken.encoding_for_model(model)
