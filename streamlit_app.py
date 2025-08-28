@@ -12,6 +12,13 @@ from openai import OpenAI
 import tiktoken
 import re
 
+
+MODEL_PRICES = {
+    "gpt-5": {"input": 1.25, "output": 10.00},
+    "gpt-5-mini": {"input": 0.25, "output": 2.00},
+    "gpt-5-nano": {"input": 0.05, "output": 0.40},
+}
+
 def count_tokens(text, model="gpt-4o"):
     encoder = tiktoken.encoding_for_model(model)
     tokens = encoder.encode(text)
@@ -82,18 +89,18 @@ def generate_gpt_prompt(text):
     )
 
 
-def extract_data_with_gpt(file_name, text):
-    """GPT-4o segítségével kinyeri a struktúrált adatokat a PDF szövegből – akár több számlára."""
+def extract_data_with_gpt(file_name, text, model_name):
+    """A kiválasztott GPT modellel kinyeri a struktúrált adatokat a PDF szövegből."""
     gpt_prompt = generate_gpt_prompt(text)
 
     try:
         client = OpenAI(api_key=openai.api_key)
         response = client.chat.completions.create(
-            model='gpt-4o', 
+            model=model_name,
             messages=[
                 {"role": "system", "content": ""},
                 {"role": "user", "content": gpt_prompt}],
-            max_tokens=10000,
+            max_tokens=5000,
             temperature=0,
             timeout=30
         )
@@ -108,16 +115,15 @@ def extract_data_with_gpt(file_name, text):
                 st.warning(f"Hibás sor ({file_name}): {row}")
                 continue
 
-            # 🧼 Tisztítsuk meg az egyes mezőket a felesleges prefixektől pl. "1) "
             cleaned_parts = [re.sub(r"^\s*\d+\)\s*", "", p.strip()) for p in parts]
-            
-            parsed_rows.append([file_name] + parts)
+            parsed_rows.append([file_name] + cleaned_parts)
 
         return parsed_rows, count_tokens(gpt_prompt)
 
     except Exception as e:
-        st.error(f"A GPT-4 feldolgozás sikertelen volt: {file_name} – {e}")
+        st.error(f"A {model_name} feldolgozás sikertelen volt: {file_name} – {e}")
         return [], 0
+
 
 
 def normalize_number(value):
@@ -230,6 +236,18 @@ with col_pdf:
     # 0) Fájl feltöltő
     uploaded_files = st.file_uploader("📤 PDF fájlok feltöltése", type=["pdf"], accept_multiple_files=True)
     
+    selected_model = st.selectbox(
+        "Válassz modellt az adatkinyeréshez:",
+        ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
+        index=0,
+        help="Árak per 1M token:\n"
+             "- gpt-5: \$1.25 input / \$10 output\n"
+             "- gpt-5-mini: \$0.25 input / \$2 output\n"
+             "- gpt-5-nano: \$0.05 input / \$0.40 output"
+    )
+
+
+    
     # 1) PDF feldolgozás
     if st.button("📑 Adatkinyerés a PDF-ből"):  
         st.session_state.extracted_text_from_invoice = []      
@@ -252,7 +270,7 @@ with col_pdf:
         st.session_state.extracted_data = []
         if st.session_state.extracted_text_from_invoice:
             for file_name, pdf_content in st.session_state.extracted_text_from_invoice:
-                extracted_rows, tokens = extract_data_with_gpt(file_name, pdf_content)
+                extracted_rows, tokens = extract_data_with_gpt(file_name, pdf_content, selected_model)
                 if extracted_rows:
                     st.session_state.extracted_data.extend(extracted_rows)
                     st.session_state.number_of_tokens += tokens
@@ -288,8 +306,9 @@ with col_pdf:
 
 
     # Token ár becslés
-    price = st.session_state.number_of_tokens * 2.5 / 1_000_000
-    st.write(f"💰 A becsült feldolgozási költség eddig: **${price:.4f}** (GPT-4o)")
+    price_input = st.session_state.number_of_tokens * MODEL_PRICES[selected_model]["input"] / 1_000_000
+    st.write(f"💰 A becsült feldolgozási költség eddig: **${price_input:.2f}** ({selected_model})")
+
 
 
 with col_excel:
