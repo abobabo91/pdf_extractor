@@ -100,8 +100,7 @@ def extract_data_with_gpt(file_name, text, model_name):
             messages=[
                 {"role": "system", "content": ""},
                 {"role": "user", "content": gpt_prompt}],
-            max_tokens=5000,
-            temperature=0,
+            max_completion_tokens=5000,
             timeout=30
         )
 
