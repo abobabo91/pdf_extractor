@@ -19,6 +19,19 @@ MODEL_PRICES = {
     "gpt-5-nano": {"input": 0.05, "output": 0.40},
 }
 
+
+def df_ready(df, required_cols=None):
+    """Ellenőrzi, hogy a df nem üres és (opcionálisan) tartalmazza a kötelező oszlopokat."""
+    if not isinstance(df, pd.DataFrame) or df is None or df.empty:
+        return False
+    if required_cols:
+        return all(col in df.columns for col in required_cols)
+    return True
+
+def need_msg(missing_list):
+    bullets = "\n".join([f"- {m}" for m in missing_list])
+    st.warning(f"Az összefűzéshez a következők hiányoznak vagy üresek:\n{bullets}")
+
 def count_tokens(text, model="gpt-4o"):
     encoder = tiktoken.encoding_for_model(model)
     tokens = encoder.encode(text)
@@ -399,57 +412,68 @@ with col_left:
     st.subheader("📎 Kinyert adatok összefűzése és ellenőrzése: Mintavétel")
     
     invoice_colname_minta = "Bizonylatszám"
-    
+        
     if st.button("🔗 Összefűzés és ellenőrzés a Mintavétel excellel"):
-        try:
-            df_minta = st.session_state.df_minta.copy()
-            df_minta.columns = df_minta.columns.str.strip()
-            df_minta[invoice_colname_minta] = df_minta[invoice_colname_minta].astype(str)
+        # Előfeltételek
+        missing = []
+        if not df_ready(st.session_state.df_extracted, required_cols=["Számlaszám", "Nettó ár"]):
+            missing.append("Kinyert adatok (PDF feldolgozás)")
+        if not df_ready(st.session_state.df_minta, required_cols=["Bizonylatszám", "Érték", "Érték deviza", "Devizanem"]):
+            missing.append("Mintavétel Excel")
     
-            df_gpt = st.session_state.df_extracted.copy()
-            df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
+        if missing:
+            need_msg(missing)
+        else:
+            try:
+                df_minta = st.session_state.df_minta.copy()
+                # Fejlécek biztonságos tisztítása (nem használ .str-t)
+                df_minta.columns = [str(c).strip() for c in df_minta.columns]
+                df_minta["Bizonylatszám"] = df_minta["Bizonylatszám"].astype(str)
     
-            # ⬅️ GPT balra, Minta jobbra
-            df_merged_minta = pd.merge(
-                df_gpt,
-                df_minta,
-                how="left",
-                left_on="Számlaszám",
-                right_on=invoice_colname_minta
-            )
+                df_gpt = st.session_state.df_extracted.copy()
+                df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
     
-            # ✅ Csak bruttó érték összehasonlítás (nettó, áfa nincs a mintában)
-            df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
-                lambda row: compare_with_tolerance(
-                    get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
-                    normalize_number(row["Nettó ár"]),
-                    tolerance=5
-                ),
-                axis=1
-            )
+                # ⬅️ GPT balra, Minta jobbra
+                df_merged_minta = pd.merge(
+                    df_gpt,
+                    df_minta,
+                    how="left",
+                    left_on="Számlaszám",
+                    right_on="Bizonylatszám"
+                )
     
-            df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].apply(
-                lambda x: "✅ Igen" if x else "❌ Nem"
-            )
+                # Nettó összehasonlítás a mintával
+                df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
+                    lambda row: compare_with_tolerance(
+                        get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
+                        normalize_number(row["Nettó ár"]),
+                        tolerance=5
+                    ),
+                    axis=1
+                )
     
-            st.session_state.df_merged_minta = df_merged_minta
+                df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].apply(
+                    lambda x: "✅ Igen" if x else "❌ Nem"
+                )
     
-            # 📊 Statisztika
-            total = len(df_merged_minta)
-            matched = (df_merged_minta["Minden egyezik?"] == "✅ Igen").sum()
-            unmatched = total - matched
-            match_rate = round(100 * matched / total, 2)
+                st.session_state.df_merged_minta = df_merged_minta
     
-            st.session_state.stats_minta = {
-                "Összes számla": total,
-                "Minden egyezés": matched,
-                "Egyezési arány (%)": match_rate
-            }
+                # 📊 Statisztika
+                total = len(df_merged_minta)
+                matched = (df_merged_minta["Minden egyezik?"] == "✅ Igen").sum()
+                match_rate = round(100 * matched / total, 2)
     
-            st.success("✅ Összefűzés és ellenőrzés a Mintavétellel sikeres!")
+                st.session_state.stats_minta = {
+                    "Összes számla": total,
+                    "Minden egyezés": matched,
+                    "Egyezési arány (%)": match_rate
+                }
     
-        except Exception as e:
-            st.error(f"❌ Hiba történt a Mintavétel összefűzés során: {e}")
+                st.success("✅ Összefűzés és ellenőrzés a Mintavétellel kész!")
+    
+            except Exception as e:
+                st.error(f"Váratlan hiba történt a Mintavétel összefűzés során: {e}")
+
     
     if "df_merged_minta" in st.session_state:
         st.write("📄 **Összefűzött és ellenőrzött táblázat – Mintavétel:**")
@@ -478,70 +502,98 @@ with col_right:
     st.subheader("📎 Kinyert adatok összefűzése és ellenőrzése: NAV")
     
     if st.button("🔗 Összefűzés és ellenőrzés a NAV excellel"):
-        try:
-            df_nav = st.session_state.df_nav.copy()
-            df_nav.columns = df_nav.columns.str.strip()
-            df_nav["számlasorszám"] = df_nav["számlasorszám"].astype(str)
+        # Előfeltételek
+        missing = []
+        if not df_ready(st.session_state.df_extracted, required_cols=["Számlaszám", "Bruttó ár", "Nettó ár", "ÁFA"]):
+            missing.append("Kinyert adatok (PDF feldolgozás)")
+        # A NAV fájlban legalább a számlaszám és az összegek valamelyike legyen
+        nav_required = ["számlasorszám"]  # az összegek neve változhat, ezért ezt lent rugalmasan kezeljük
+        if not df_ready(st.session_state.df_nav, required_cols=nav_required):
+            missing.append("NAV Excel")
     
-            df_gpt = st.session_state.df_extracted.copy()
-            df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
+        if missing:
+            need_msg(missing)
+        else:
+            try:
+                df_nav = st.session_state.df_nav.copy()
+                df_nav.columns = [str(c).strip() for c in df_nav.columns]
+                df_nav["számlasorszám"] = df_nav["számlasorszám"].astype(str)
     
-            df_merged_nav = pd.merge(
-                df_gpt,
-                df_nav,
-                how="left",
-                left_on="Számlaszám",
-                right_on="számlasorszám"
-            )
+                df_gpt = st.session_state.df_extracted.copy()
+                df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
     
-            # Összegellenőrzés
-            df_merged_nav["Bruttó egyezik?"] = df_merged_nav.apply(
-                lambda row: compare_with_tolerance(
-                    normalize_number(row.get("bruttó érték") or row.get("bruttó érték Ft")),
-                    normalize_number(row["Bruttó ár"]),
-                ),
-                axis=1
-            )
+                df_merged_nav = pd.merge(
+                    df_gpt,
+                    df_nav,
+                    how="left",
+                    left_on="Számlaszám",
+                    right_on="számlasorszám"
+                )
     
-            df_merged_nav["Nettó egyezik?"] = df_merged_nav.apply(
-                lambda row: compare_with_tolerance(
-                    normalize_number(row.get("nettóérték") or row.get("nettóérték Ft")),
-                    normalize_number(row["Nettó ár"]),
-                ),
-                axis=1
-            )
+                # Oszlopnevek rugalmas keresése (különböző exportok)
+                brutto_col = "bruttó érték" if "bruttó érték" in df_merged_nav.columns else ("bruttó érték Ft" if "bruttó érték Ft" in df_merged_nav.columns else None)
+                netto_col  = "nettóérték"  if "nettóérték"  in df_merged_nav.columns else ("nettóérték Ft"  if "nettóérték Ft"  in df_merged_nav.columns else None)
+                afa_col    = "adóérték"    if "adóérték"    in df_merged_nav.columns else ("adóérték Ft"    if "adóérték Ft"    in df_merged_nav.columns else None)
     
-            df_merged_nav["ÁFA egyezik?"] = df_merged_nav.apply(
-                lambda row: compare_with_tolerance(
-                    normalize_number(row.get("adóérték") or row.get("adóérték Ft")),
-                    normalize_number(row["ÁFA"]),
-                ),
-                axis=1
-            )
+                # Ha nincs egyik összegoszlop sem, adjunk barátságos jelzést
+                amount_missing = []
+                if brutto_col is None:
+                    amount_missing.append("bruttó érték (NAV)")
+                if netto_col is None:
+                    amount_missing.append("nettóérték (NAV)")
+                if afa_col is None:
+                    amount_missing.append("adóérték (NAV)")
+                if amount_missing:
+                    need_msg(amount_missing)
     
-            df_merged_nav["Minden egyezik?"] = df_merged_nav.apply(
-                lambda row: "✅ Igen" if row["Bruttó egyezik?"] and row["Nettó egyezik?"] and row["ÁFA egyezik?"] else "❌ Nem",
-                axis=1
-            )
+                # Összegellenőrzések (csak ha van megfelelő NAV oszlop)
+                df_merged_nav["Bruttó egyezik?"] = df_merged_nav.apply(
+                    lambda row: compare_with_tolerance(
+                        normalize_number(row.get(brutto_col)) if brutto_col else None,
+                        normalize_number(row.get("Bruttó ár")),
+                    ),
+                    axis=1
+                )
     
-            st.session_state.df_merged_nav = df_merged_nav
+                df_merged_nav["Nettó egyezik?"] = df_merged_nav.apply(
+                    lambda row: compare_with_tolerance(
+                        normalize_number(row.get(netto_col)) if netto_col else None,
+                        normalize_number(row.get("Nettó ár")),
+                    ),
+                    axis=1
+                )
     
-            # Statisztika
-            total = len(df_merged_nav)
-            matched_all = (df_merged_nav["Minden egyezik?"] == "✅ Igen").sum()
-            unmatched = total - matched_all
-            match_rate = round(100 * matched_all / total, 2)
+                df_merged_nav["ÁFA egyezik?"] = df_merged_nav.apply(
+                    lambda row: compare_with_tolerance(
+                        normalize_number(row.get(afa_col)) if afa_col else None,
+                        normalize_number(row.get("ÁFA")),
+                    ),
+                    axis=1
+                )
     
-            st.session_state.stats_nav = {
-                "Összes számla": total,
-                "Minden egyezés": matched_all,
-                "Teljes egyezési arány (%)": match_rate
-            }
+                df_merged_nav["Minden egyezik?"] = df_merged_nav.apply(
+                    lambda row: "✅ Igen" if (row["Bruttó egyezik?"] and row["Nettó egyezik?"] and row["ÁFA egyezik?"]) else "❌ Nem",
+                    axis=1
+                )
     
-            st.success("✅ NAV fájllal való összefűzés és ellenőrzés kész!")
+                st.session_state.df_merged_nav = df_merged_nav
     
-        except Exception as e:
-            st.error(f"❌ Hiba történt a NAV összefűzés során: {e}")
+                # Statisztika
+                total = len(df_merged_nav)
+                matched_all = (df_merged_nav["Minden egyezik?"] == "✅ Igen").sum()
+                match_rate = round(100 * matched_all / total, 2)
+    
+                st.session_state.stats_nav = {
+                    "Összes számla": total,
+                    "Minden egyezés": matched_all,
+                    "Teljes egyezési arány (%)": match_rate
+                }
+    
+                st.success("✅ NAV fájllal való összefűzés és ellenőrzés kész!")
+    
+            except Exception as e:
+                st.error(f"Váratlan hiba történt a NAV összefűzés során: {e}")
+
     
     if "df_merged_nav" in st.session_state:
         st.write("📄 **Összefűzött és ellenőrzött táblázat – NAV:**")
