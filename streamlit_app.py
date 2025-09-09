@@ -14,9 +14,9 @@ import re
 
 
 MODEL_PRICES = {
-    "gpt-5": {"input": 1.25, "output": 10.00},
-    "gpt-5-mini": {"input": 0.25, "output": 2.00},
-    "gpt-5-nano": {"input": 0.05, "output": 0.40},
+    "gpt-4.1": {"input": 1.25, "output": 10.00},
+    "gpt-4.1-mini": {"input": 0.25, "output": 2.00},
+    "gpt-4.1-nano": {"input": 0.05, "output": 0.40},
 }
 
 
@@ -250,12 +250,12 @@ with col_pdf:
     
     selected_model = st.selectbox(
         "Válassz modellt az adatkinyeréshez:",
-        ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
+        ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
         index=0,
         help="Árak per 1M token:\n"
-             "- gpt-5: \$1.25 input / \$10 output\n"
-             "- gpt-5-mini: \$0.25 input / \$2 output\n"
-             "- gpt-5-nano: \$0.05 input / \$0.40 output"
+             "- gpt-4.1: \$1.25 input / \$10 output\n"
+             "- gpt-4.1-mini: \$0.25 input / \$2 output\n"
+             "- gpt-4.1-nano: \$0.05 input / \$0.40 output"
     )
 
 
