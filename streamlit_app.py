@@ -264,10 +264,10 @@ with col_pdf:
     if st.button("📑 Adatkinyerés a PDF-ből"):  
         st.session_state.extracted_text_from_invoice = []      
         if uploaded_files:
-            if len(uploaded_files) > 100:
+            if len(uploaded_files) > 200:
                 st.write("⚠️ Az első 100 fájl kerül feldolgozásra.")
     
-            for uploaded_file in uploaded_files[:100]:
+            for uploaded_file in uploaded_files[:200]:
                 file_name = uploaded_file.name
                 pdf_text = extract_text_from_pdf(uploaded_file)
     
