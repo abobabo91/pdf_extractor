@@ -101,6 +101,8 @@ def generate_gpt_prompt(text):
         "- Do **not** include field numbers (e.g. '1)', '2)' etc.) in the output.\n"
         "- Write all numeric fields as plain integers (e.g. `1500000`).\n"
         "- **Do not use thousands separators** (e.g. `.`) or decimal commas (`,`).\n"
+        "- Note: In Hungarian, decimal separators are commas (`,`) instead of dots (`.`), "
+        "but you must ignore this and always output plain integers.\n"
         "- Do **not** include any explanation, headings, or extra text — just the data rows.\n\n"
         "Extracted text:\n"
         f"{text}"
