@@ -18,6 +18,7 @@ import re
 
 MODEL_PRICES = {
     "gpt-4.1": {"input": 1.25, "output": 10.00},
+    "gpt-4o": {"input": 2.50, "output": 10.00},
     "gpt-4.1-mini": {"input": 0.25, "output": 2.00},
     "gpt-4.1-nano": {"input": 0.05, "output": 0.40},
 }
@@ -254,10 +255,11 @@ with col_pdf:
     
     selected_model = st.selectbox(
         "Válassz modellt az adatkinyeréshez:",
-        ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+        ["gpt-4.1", "gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano"],
         index=0,
         help="Árak per 1M token:\n"
              "- gpt-4.1: \$1.25 input / \$10 output\n"
+             "- gpt-4o: \$2.50 input / \$10 output\n"
              "- gpt-4.1-mini: \$0.25 input / \$2 output\n"
              "- gpt-4.1-nano: \$0.05 input / \$0.40 output"
     )
@@ -678,24 +680,26 @@ local_test = """
 os.listdir('./')
 
 
-openai.api_key = os.getenv("OPENAI_API_KEY")  # or set directly
+import tomllib
+
+secrets_path = r"C:\Users\abele\.streamlit\secrets.toml"
+
+with open(secrets_path, "rb") as f:
+    secrets = tomllib.load(f)
+
+openai.api_key = secrets["OPENAI_API_KEY"]
+
 MODEL = "gpt-4.1"  # cheapest useful model
-PDF_FILE = "1800000193.pdf"  # <-- replace with your own file path
+PDF_FILE = "9601013656.pdf"  # <-- replace with your own file path
 
 
 with open(PDF_FILE, "rb") as f:
     text = extract_text_from_pdf(f)
 
-if not text:
-    print("No text extracted.")
-    return
 
 # 2) GPT extraction
 rows, tokens_used = extract_data_with_gpt(PDF_FILE, text, MODEL)
 
-if not rows:
-    print("No data extracted.")
-    return
 
 # 3) Create DataFrame
 df = pd.DataFrame(rows, columns=[
