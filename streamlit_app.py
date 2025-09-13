@@ -100,9 +100,9 @@ def generate_gpt_prompt(text):
         "- Use **one line per invoice**.\n"
         "- Do **not** include field numbers (e.g. '1)', '2)' etc.) in the output.\n"
         "- Write all numeric fields as plain integers (e.g. `1500000`).\n"
-        "- **Do not use thousands separators** (e.g. `.`) or decimal commas (`,`).\n"
+        "- **Do not use thousands separators** (e.g. `.`) or decimal commas (`,`) in the output.\n"
         "- Note: In Hungarian, decimal separators are commas (`,`) instead of dots (`.`), "
-        "but you must ignore this and always output plain integers.\n"
+        "and thousand separators are dots (`.`)"
         "- Do **not** include any explanation, headings, or extra text — just the data rows.\n\n"
         "Extracted text:\n"
         f"{text}"
@@ -691,8 +691,8 @@ with open(secrets_path, "rb") as f:
 
 openai.api_key = secrets["OPENAI_API_KEY"]
 
-MODEL = "gpt-4.1"  # cheapest useful model
-PDF_FILE = "9601013656.pdf"  # <-- replace with your own file path
+MODEL = "gpt-4o"  # cheapest useful model
+PDF_FILE = "9601013661.pdf"  # <-- replace with your own file path
 
 
 with open(PDF_FILE, "rb") as f:
