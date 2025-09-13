@@ -1,3 +1,6 @@
+
+
+
 import streamlit as st
 st.set_page_config(layout="wide")
 import pandas as pd
@@ -62,7 +65,8 @@ def extract_text_from_pdf(uploaded_file):
         pdf_content = ""
         try:
             uploaded_file.seek(0)
-            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin")
+            images = pdf2image.convert_from_bytes(uploaded_file.read())
+#            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") local
             for img in images:
                 pdf_content += pytesseract.image_to_string(img, lang="hun")
         except Exception as e:
@@ -667,6 +671,43 @@ if "df_merged_karton" in st.session_state:
 
 
 
+
+
+local_test = """
+
+os.listdir('./')
+
+
+openai.api_key = os.getenv("OPENAI_API_KEY")  # or set directly
+MODEL = "gpt-4.1"  # cheapest useful model
+PDF_FILE = "1800000193.pdf"  # <-- replace with your own file path
+
+
+with open(PDF_FILE, "rb") as f:
+    text = extract_text_from_pdf(f)
+
+if not text:
+    print("No text extracted.")
+    return
+
+# 2) GPT extraction
+rows, tokens_used = extract_data_with_gpt(PDF_FILE, text, MODEL)
+
+if not rows:
+    print("No data extracted.")
+    return
+
+# 3) Create DataFrame
+df = pd.DataFrame(rows, columns=[
+    "Fájl", "Eladó", "Vevő", "Számlaszám", "Számla dátum",
+    "Bruttó ár", "Nettó ár", "ÁFA", "Pénznem", "Árfolyam"
+])
+
+
+
+
+
+"""
 
 
 
