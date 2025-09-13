@@ -66,7 +66,7 @@ def extract_text_from_pdf(uploaded_file):
         pdf_content = ""
         try:
             uploaded_file.seek(0)
-            images = pdf2image.convert_from_bytes(uploaded_file.read())
+            images = pdf2image.convert_from_bytes(uploaded_file.read(), dpi=300)
 #            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") local
             for img in images:
                 pdf_content += pytesseract.image_to_string(img, lang="hun")
