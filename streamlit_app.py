@@ -675,7 +675,7 @@ if "df_merged_karton" in st.session_state:
 
 
 
-local_test = """
+local_test = r"""
 
 os.listdir('./')
 
@@ -715,7 +715,7 @@ df = pd.DataFrame(rows, columns=[
 
 
 
-local_test = """
+local_test = r"""
 df_extracted = pd.read_csv('extract_data.csv')
 df_minta = pd.read_excel('Mintavétel_költségek_Sonneveld és ellenïrzés.xlsx', sheet_name='Mintavétel', skiprows = range(1, 9))
 df_minta.columns = list(df_minta.iloc[0])
