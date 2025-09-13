@@ -283,6 +283,7 @@ with col_pdf:
                     continue
     
                 st.session_state.extracted_text_from_invoice.append([file_name, pdf_text])
+                st.write(pdf_text)
         else:
             st.warning("⚠️ Kérlek, tölts fel legalább egy PDF fájlt.")
     
