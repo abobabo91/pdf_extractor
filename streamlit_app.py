@@ -258,11 +258,11 @@ with col_pdf:
         "Válassz modellt az adatkinyeréshez:",
         ["gpt-4.1", "gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano"],
         index=0,
-        help=r"Árak per 1M token:\n"
-         r"- gpt-4.1: $1.25 input / $10 output\n"
-         r"- gpt-4o: $2.50 input / $10 output\n"
-         r"- gpt-4.1-mini: $0.25 input / $2 output\n"
-         r"- gpt-4.1-nano: $0.05 input / $0.40 output"
+        help="Árak per 1M token:\n"
+             "- gpt-4.1: \\$1.25 input / \\$10 output\n"
+             "- gpt-4o: \\$2.50 input / \\$10 output\n"
+             "- gpt-4.1-mini: \\$0.25 input / \\$2 output\n"
+             "- gpt-4.1-nano: \\$0.05 input / \\$0.40 output"
         )
     
     # 1) PDF feldolgozás
