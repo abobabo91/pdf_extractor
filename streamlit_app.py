@@ -324,7 +324,7 @@ with col_pdf:
                 if extracted_rows:
                     st.session_state.extracted_data.extend(extracted_rows)
                     st.session_state.number_of_tokens += tokens
-                    st.write(f"{file_name}-ból adatok AI-al kinyerése kész.")
+                    st.write(f"{file_name}-ból kinyert szöveg AI feldolgozása kész.")
 
     
         if st.session_state.extracted_data:
