@@ -7,7 +7,8 @@ import pandas as pd
 import numpy as np
 import os
 import PyPDF2
-import pdf2image
+from pdf2image import convert_from_bytes
+import gc
 import pytesseract
 from io import BytesIO
 import openai
@@ -16,6 +17,7 @@ import tiktoken
 import re
 
 import traceback, sys
+import gc
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error("Unhandled exception:")
@@ -57,6 +59,7 @@ def replace_successive_duplicates(df, column_to_compare, columns_to_delete):
         result.loc[mask, col] = np.nan
     return result
 
+
 def extract_text_from_pdf(uploaded_file):
     """Megpróbálja szövegesen kinyerni a PDF tartalmát, OCR-rel kiegészítve, ha szükséges."""
     file_name = uploaded_file.name
@@ -64,29 +67,40 @@ def extract_text_from_pdf(uploaded_file):
 
     try:
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
-        for page in pdf_reader.pages[:]:
+        for page in pdf_reader.pages:
             pdf_content += page.extract_text() or ""
     except Exception as e:
         st.error(f"Hiba a(z) {file_name} fájl olvasásakor: {e}")
         return None
 
+    # Ha nincs elég szöveg → OCR fallback
     if len(pdf_content.strip()) < 100:
         pdf_content = ""
         try:
             uploaded_file.seek(0)
-            images = pdf2image.convert_from_bytes(uploaded_file.read(), dpi=300)
-#            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") #local
-            for img in images:
-                pdf_content += pytesseract.image_to_string(img, lang="hun")
+            file_bytes = uploaded_file.read()
+
+            # Oldalanként dolgozzuk fel, ne listában
+#            for i, page in enumerate(convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") #local):  
+            for i, page in enumerate(convert_from_bytes(file_bytes, dpi=300)):  
+                text = pytesseract.image_to_string(page, lang="hun")
+                pdf_content += text + "\n"
+
+                # oldalt töröljük memóriából
+                del page
+                gc.collect()
+
         except Exception as e:
             st.error(f"OCR hiba a(z) {file_name} fájlnál: {e}")
             return None
 
+    # hosszkorlátozás
     if len(pdf_content) > 500000:
-        st.write(file_name + " túl hosszú, csak az első 5000 karakter kerül feldolgozásra.")
+        st.warning(file_name + " túl hosszú, csak az első 5000 karakter kerül feldolgozásra.")
         pdf_content = pdf_content[:5000]
 
     return pdf_content
+
 
 def generate_gpt_prompt(text):
     """Generates a clear, structured GPT prompt for invoice data extraction."""
