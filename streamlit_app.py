@@ -305,13 +305,13 @@ with col_pdf:
     
             for uploaded_file in uploaded_files[:200]:
                 file_name = uploaded_file.name
+                st.write(f"{file_name}-ból a szöveg kinyerése oldalanként:")
                 pdf_text = extract_text_from_pdf(uploaded_file)
     
                 if pdf_text is None:
                     continue
     
                 st.session_state.extracted_text_from_invoice.append([file_name, pdf_text])
-                st.write(f"{file_name}-ból a szöveg kinyerése kész.")
 #                st.write(pdf_text)
         else:
             st.warning("⚠️ Kérlek, tölts fel legalább egy PDF fájlt.")
