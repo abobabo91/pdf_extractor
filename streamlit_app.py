@@ -60,11 +60,12 @@ def replace_successive_duplicates(df, column_to_compare, columns_to_delete):
     return result
 
 
+
 def extract_text_from_pdf(uploaded_file):
-    """Megpróbálja szövegesen kinyerni a PDF tartalmát, OCR-rel kiegészítve, ha szükséges."""
     file_name = uploaded_file.name
     pdf_content = ""
 
+    # 1) sima szövegkinyerés
     try:
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
         for page in pdf_reader.pages:
@@ -73,33 +74,45 @@ def extract_text_from_pdf(uploaded_file):
         st.error(f"Hiba a(z) {file_name} fájl olvasásakor: {e}")
         return None
 
-    # Ha nincs elég szöveg → OCR fallback
+    # 2) OCR fallback, ha túl kevés szöveg van
     if len(pdf_content.strip()) < 100:
         pdf_content = ""
         try:
             uploaded_file.seek(0)
             file_bytes = uploaded_file.read()
 
-            # Oldalanként dolgozzuk fel, ne listában
-#            for i, page in enumerate(convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") #local):  
-            for i, page in enumerate(convert_from_bytes(file_bytes, dpi=300)):  
-                text = pytesseract.image_to_string(page, lang="hun")
+            # először derítsük ki hány oldal van
+            num_pages = len(PyPDF2.PdfReader(BytesIO(file_bytes)).pages)
+
+            progress = st.progress(0)
+            for i in range(1, num_pages + 1):
+                images = convert_from_bytes(
+                    file_bytes,
+                    dpi=300,             # kisebb dpi → kevesebb memória
+                    first_page=i,
+                    last_page=i
+                )
+                text = pytesseract.image_to_string(images[0], lang="hun")
                 pdf_content += text + "\n"
 
-                # oldalt töröljük memóriából
-                del page
+                # memóriatisztítás
+                del images
                 gc.collect()
+
+                progress.progress(i / num_pages)
 
         except Exception as e:
             st.error(f"OCR hiba a(z) {file_name} fájlnál: {e}")
             return None
 
-    # hosszkorlátozás
+    # 3) hosszkorlátozás
     if len(pdf_content) > 500000:
         st.warning(file_name + " túl hosszú, csak az első 5000 karakter kerül feldolgozásra.")
         pdf_content = pdf_content[:5000]
 
     return pdf_content
+
+
 
 
 def generate_gpt_prompt(text):
@@ -302,6 +315,7 @@ with col_pdf:
                     continue
     
                 st.session_state.extracted_text_from_invoice.append([file_name, pdf_text])
+                st.write(f"{file_name}-ból a szöveg kinyerése kész.")
 #                st.write(pdf_text)
         else:
             st.warning("⚠️ Kérlek, tölts fel legalább egy PDF fájlt.")
@@ -314,7 +328,7 @@ with col_pdf:
                 if extracted_rows:
                     st.session_state.extracted_data.extend(extracted_rows)
                     st.session_state.number_of_tokens += tokens
-                    st.write(f"{file_name} feldolgozása kész.")
+                    st.write(f"{file_name}-ból adatok AI-al kinyerése kész.")
 
     
         if st.session_state.extracted_data:
