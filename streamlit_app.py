@@ -319,7 +319,7 @@ with col_pdf:
                 label="📥 Kinyert adatok letöltése Excelben",
                 data=buffer,
                 file_name='kinyert_adatok.xlsx',
-                mime='application/vnd.ms-excel'
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
 
@@ -495,7 +495,7 @@ with col_left:
                 label="📥 Letöltés Excel (Mintavétel)",
                 data=buffer,
                 file_name='merged_minta.xlsx',
-                mime='application/vnd.ms-excel'
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
     
         st.markdown("### 📊 Statisztika – Mintavétel ellenőrzés")
