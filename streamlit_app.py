@@ -314,7 +314,7 @@ with col_pdf:
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             st.session_state.df_extracted.to_excel(writer, sheet_name='Adatok', index=False)
-            writer.close()
+
             st.download_button(
                 label="📥 Kinyert adatok letöltése Excelben",
                 data=buffer,
