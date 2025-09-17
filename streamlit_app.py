@@ -15,6 +15,14 @@ from openai import OpenAI
 import tiktoken
 import re
 
+import traceback, sys
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    st.error("Unhandled exception:")
+    st.code("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+
+sys.excepthook = global_exception_handler
+
 
 MODEL_PRICES = {
     "gpt-4.1": {"input": 1.25, "output": 10.00},
@@ -67,7 +75,7 @@ def extract_text_from_pdf(uploaded_file):
         try:
             uploaded_file.seek(0)
             images = pdf2image.convert_from_bytes(uploaded_file.read(), dpi=300)
-#            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") local
+#            images = pdf2image.convert_from_bytes(uploaded_file.read(), poppler_path = r"C:\poppler-24.08.0\Library\bin") #local
             for img in images:
                 pdf_content += pytesseract.image_to_string(img, lang="hun")
         except Exception as e:
