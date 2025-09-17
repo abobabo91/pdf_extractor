@@ -490,7 +490,7 @@ with col_left:
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             st.session_state.df_merged_minta.to_excel(writer, sheet_name='Minta', index=False)
-            writer.close()
+            
             st.download_button(
                 label="📥 Letöltés Excel (Mintavétel)",
                 data=buffer,
@@ -609,7 +609,7 @@ with col_right:
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             st.session_state.df_merged_nav.to_excel(writer, sheet_name='NAV összehasonlítás', index=False)
-            writer.close()
+            
     
         st.download_button(
             label="📥 Letöltés Excel (NAV)",
