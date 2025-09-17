@@ -86,12 +86,8 @@ def extract_text_from_pdf(uploaded_file):
 
             progress = st.progress(0)
             for i in range(1, num_pages + 1):
-                images = convert_from_bytes(
-                    file_bytes,
-                    dpi=300,             # kisebb dpi → kevesebb memória
-                    first_page=i,
-                    last_page=i
-                )
+                images = convert_from_bytes(file_bytes, dpi=300, first_page=i, last_page=i)
+#                images = convert_from_bytes(file_bytes, dpi=300, first_page=i, last_page=i, poppler_path = r"C:\poppler-24.08.0\Library\bin") #local)
                 text = pytesseract.image_to_string(images[0], lang="hun")
                 pdf_content += text + "\n"
 
