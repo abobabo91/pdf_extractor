@@ -301,39 +301,63 @@ with col_pdf:
         st.session_state.extracted_text_from_invoice = []      
         if uploaded_files:
             if len(uploaded_files) > 200:
-                st.write("⚠️ Az első 100 fájl kerül feldolgozásra.")
+                st.write("⚠️ Az első 200 fájl kerül feldolgozásra.")
+            files_to_process = uploaded_files[:200]
     
-            for uploaded_file in uploaded_files[:200]:
+            # ---- 1) PDF szöveg kinyerés progress bar ----
+            pdf_progress = st.progress(0, text="PDF szöveg kinyerése folyamatban...")
+            pdf_status = st.empty()  # helyfoglaló a státusznak
+    
+            for idx, uploaded_file in enumerate(files_to_process, start=1):
                 file_name = uploaded_file.name
-                st.write(f"{file_name}-ból a szöveg kinyerése oldalanként:")
+                pdf_status.write(f"{file_name} feldolgozása (PDF szöveg kinyerése)...")
                 pdf_text = extract_text_from_pdf(uploaded_file)
     
                 if pdf_text is None:
                     continue
     
                 st.session_state.extracted_text_from_invoice.append([file_name, pdf_text])
-#                st.write(pdf_text)
+    
+                # update progress
+                pdf_progress.progress(idx / len(files_to_process), 
+                                      text=f"PDF kinyerés: {idx}/{len(files_to_process)} kész")
+    
+            pdf_progress.empty()
+            pdf_status.write("✅ PDF szöveg kinyerés befejezve.")
+    
         else:
             st.warning("⚠️ Kérlek, tölts fel legalább egy PDF fájlt.")
     
-        # 2) GPT adatkinyerés
+        # ---- 2) GPT adatkinyerés progress bar ----
         st.session_state.extracted_data = []
         if st.session_state.extracted_text_from_invoice:
-            for file_name, pdf_content in st.session_state.extracted_text_from_invoice:
+            gpt_progress = st.progress(0, text="AI adatkinyerés folyamatban...")
+            gpt_status = st.empty()  # helyfoglaló a státusznak
+    
+            for idx, (file_name, pdf_content) in enumerate(st.session_state.extracted_text_from_invoice, start=1):
+                gpt_status.write(f"{file_name} feldolgozása (AI adatkinyerés)...")
                 extracted_rows, tokens = extract_data_with_gpt(file_name, pdf_content, selected_model)
                 if extracted_rows:
                     st.session_state.extracted_data.extend(extracted_rows)
                     st.session_state.number_of_tokens += tokens
-                    st.write(f"{file_name}-ból kinyert szöveg AI feldolgozása kész.")
-
     
+                # update progress
+                gpt_progress.progress(idx / len(st.session_state.extracted_text_from_invoice),
+                                      text=f"AI feldolgozás: {idx}/{len(st.session_state.extracted_text_from_invoice)} kész")
+    
+            gpt_progress.empty()
+            gpt_status.write("✅ AI adatkinyerés befejezve.")
+    
+        # ---- 3) DataFrame létrehozás ----
         if st.session_state.extracted_data:
             st.session_state.df_extracted = pd.DataFrame(
                 st.session_state.extracted_data,
-                columns=["Fájlnév", "Eladó", "Vevő", "Számlaszám", "Számla kelte", "Bruttó ár", "Nettó ár", "ÁFA", "Deviza", "Árfolyam"]
+                columns=["Fájlnév", "Eladó", "Vevő", "Számlaszám", "Számla kelte", 
+                         "Bruttó ár", "Nettó ár", "ÁFA", "Deviza", "Árfolyam"]
             )
             st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
             st.session_state.df_extracted["1"] = np.nan
+
 
     
     if len(st.session_state.df_extracted) > 0:        
