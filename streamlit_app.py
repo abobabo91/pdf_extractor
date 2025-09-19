@@ -27,8 +27,8 @@ sys.excepthook = global_exception_handler
 
 
 MODEL_PRICES = {
-    "gpt-4.1": {"input": 1.25, "output": 10.00},
     "gpt-4o": {"input": 2.50, "output": 10.00},
+    "gpt-4.1": {"input": 1.25, "output": 10.00},
     "gpt-4.1-mini": {"input": 0.25, "output": 2.00},
     "gpt-4.1-nano": {"input": 0.05, "output": 0.40},
 }
@@ -102,9 +102,9 @@ def extract_text_from_pdf(uploaded_file):
             return None
 
     # 3) hosszkorlátozás
-    if len(pdf_content) > 500000:
-        st.warning(file_name + " túl hosszú, csak az első 5000 karakter kerül feldolgozásra.")
-        pdf_content = pdf_content[:5000]
+    if len(pdf_content) > 300000:
+        st.warning(file_name + " túl hosszú, csak az első 300000 karakter kerül feldolgozásra.")
+        pdf_content = pdf_content[:300000]
 
     return pdf_content
 
@@ -287,11 +287,11 @@ with col_pdf:
     
     selected_model = st.selectbox(
         "Válassz modellt az adatkinyeréshez:",
-        ["gpt-4.1", "gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano"],
+        ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
         index=0,
         help="Árak per 1M token:\n"
-             "- gpt-4.1: \\$1.25 input / \\$10 output\n"
              "- gpt-4o: \\$2.50 input / \\$10 output\n"
+             "- gpt-4.1: \\$1.25 input / \\$10 output\n"
              "- gpt-4.1-mini: \\$0.25 input / \\$2 output\n"
              "- gpt-4.1-nano: \\$0.05 input / \\$0.40 output"
         )
