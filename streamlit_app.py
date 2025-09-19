@@ -635,11 +635,19 @@ with col_right:
 
                 # Részletező tábla: minden NAV sor + számlaszintű ellenőrzés eredménye
                 df_details = pd.merge(
-                    df_nav,
+                    df_gpt[["Számlaszám"]],   # csak a GPT számlák
+                    df_nav,                   # NAV tételek
+                    how="left",
+                    left_on="Számlaszám",
+                    right_on="számlasorszám"
+                )
+                
+                # 3) Számlaszintű eredmények visszacsatolása
+                df_details = pd.merge(
+                    df_details,
                     df_check[["Számlaszám", "Bruttó egyezik?", "Nettó egyezik?", "ÁFA egyezik?", "Minden egyezik?"]],
                     how="left",
-                    left_on="számlasorszám",
-                    right_on="Számlaszám"
+                    on="Számlaszám"
                 )
 
                 # Mentés session_state-be
