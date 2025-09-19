@@ -484,29 +484,36 @@ with col_left:
                 df_gpt = st.session_state.df_extracted.copy()
                 df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
     
-                # ⬅️ GPT balra, Minta jobbra
+                # ⬅️ Minta balra, GPT jobbra
                 df_merged_minta = pd.merge(
-                    df_gpt,
                     df_minta,
+                    df_gpt,
                     how="left",
-                    left_on="Számlaszám",
-                    right_on="Bizonylatszám"
+                    left_on="Bizonylatszám",
+                    right_on="Számlaszám"
                 )
-    
+                
                 # Nettó összehasonlítás a mintával
                 df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
                     lambda row: compare_with_tolerance(
                         get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
-                        normalize_number(row["Nettó ár"]),
+                        normalize_number(row.get("Nettó ár")),
                         tolerance=5
                     ),
                     axis=1
                 )
-    
+                
                 df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].apply(
                     lambda x: "✅ Igen" if x else "❌ Nem"
                 )
-    
+                
+                df_merged_minta = df_merged_minta.sort_values(
+                    by="Minden egyezik?", 
+                    ascending=False, 
+                    key=lambda col: col.eq("✅ Igen"), 
+                    kind="stable"
+                ).reset_index(drop=True)
+
                 st.session_state.df_merged_minta = df_merged_minta
     
                 # 📊 Statisztika
