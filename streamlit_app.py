@@ -364,8 +364,8 @@ with col_pdf:
         st.write("✅ **Adatok kinyerve!** Az alábbi táblázat tartalmazza az eredményeket:")
         st.dataframe(st.session_state.df_extracted)
     
-        extract_csv = st.session_state.df_extracted.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Kinyert adatok letöltése CSV-ben", extract_csv, "kinyert_adatok.csv", "text/csv", key="letoltes-csv")
+#        extract_csv = st.session_state.df_extracted.to_csv(index=False).encode("utf-8")
+#        st.download_button("📥 Kinyert adatok letöltése CSV-ben", extract_csv, "kinyert_adatok.csv", "text/csv", key="letoltes-csv")
         
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
