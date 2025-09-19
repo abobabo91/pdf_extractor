@@ -434,8 +434,6 @@ with col_excel:
         st.write("✅ **NAV fájl betöltve!** Első néhány sor:")
         st.dataframe(st.session_state.df_nav.head(5))
     
-    
-    
     # Karton fájl
     st.markdown("3) Töltsd fel a **Karton** Excel fájlt:")
     uploaded_excel_file_karton = st.file_uploader(
@@ -445,27 +443,18 @@ with col_excel:
         help="Az adatok az első munkalapon az A1 cellától induljanak."
     )    
     
-    default_invoice_column_karton = "Bizonylat"
-    custom_colname_enabled_karton = st.checkbox("🔧 Saját oszlopnév megadása a számlaszámhoz a Karton excelben (Alapértelmezett: 'Bizonylat')", value=False)
-    
-    if custom_colname_enabled_karton:
-        invoice_colname_karton = st.text_input("Add meg a számlaszámot tartalmazó oszlop nevét a Karton excelben:", value=default_invoice_column_karton)
-    else:
-        invoice_colname_karton = default_invoice_column_karton
-    
     if uploaded_excel_file_karton:
         try:
+            # Simply read the Excel file, no special column assumptions
             st.session_state.df_karton = pd.read_excel(uploaded_excel_file_karton)
-            st.session_state.df_karton[invoice_colname_karton] = st.session_state.df_karton[invoice_colname_karton].astype(str)
-        except:
-            st.warning("❌ Nem sikerült beolvasni a Karton fájlt.")
     
-    if len(st.session_state.df_karton) > 0:        
-        st.write("✅ **Karton betöltve!** Első néhány sor:")
-        st.dataframe(st.session_state.df_karton.head(5))
- 
+            st.write("✅ **Karton betöltve!** Első néhány sor:")
+            st.dataframe(st.session_state.df_karton.head(5))
     
- 
+        except Exception as e:
+            st.warning(f"❌ Nem sikerült beolvasni a Karton fájlt: {e}")
+    
+     
 st.title("📄 Ellenőrzések")
 
 col_left, col_right = st.columns([1, 1])  # nagyobb bal oldali hasáb
@@ -690,7 +679,6 @@ with col_right:
             st.write(f"**{k}:** {v}")
 
 
-
 st.subheader("📎 Kinyert adatok összefűzése: Karton")
 
 if st.button("🔗 Összefűzés a Kartonnal"):
@@ -706,23 +694,23 @@ if st.button("🔗 Összefűzés a Kartonnal"):
         mask = df_karton.apply(lambda row: row.astype(str).isin(invoice_numbers).any(), axis=1)
         df_filtered_karton = df_karton[mask].copy()
 
-        # Rendezés számlaszám szerint (ha van ilyen oszlop)
-        if invoice_colname_karton in df_filtered_karton.columns:
-            df_filtered_karton = df_filtered_karton.sort_values(by=invoice_colname_karton)
+        # Ha van "Bizonylat" vagy "Számlaszám" oszlop, rendezzük arra
+        for possible_col in ["Bizonylat", "Számlaszám", "számlasorszám"]:
+            if possible_col in df_filtered_karton.columns:
+                df_filtered_karton = df_filtered_karton.sort_values(by=possible_col)
+                break
 
         st.session_state.df_filtered_karton = df_filtered_karton
 
-        # Statisztika: hány GPT számlaszám talált párt a Kartonban
-        matched_karton = df_filtered_karton[invoice_colname_karton].nunique()
+        # Statisztika: hány GPT számlaszámhoz találtunk sorokat
+        matched_karton = df_filtered_karton.apply(
+            lambda row: any(str(val) in invoice_numbers for val in row.values), axis=1
+        ).sum()
         total_karton = len(invoice_numbers)
-        unmatched_karton = total_karton - matched_karton
-        match_rate_karton = round(100 * matched_karton / total_karton, 2)
 
         st.session_state.stats_karton = {
             "Összes számla (GPT)": total_karton,
-            "Kartonban megtalált": matched_karton,
-            "Hiányzó egyezés": unmatched_karton,
-            "Egyezési arány (%)": match_rate_karton
+            "Kartonban megtalált sorok": matched_karton,
         }
 
         st.success("✅ Karton keresés és szűrés kész!")
@@ -734,14 +722,21 @@ if "df_filtered_karton" in st.session_state:
     st.write("📄 **Szűrt táblázat – Karton (csak releváns sorok):**")
     st.dataframe(st.session_state.df_filtered_karton)
 
-    csv_karton = st.session_state.df_filtered_karton.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Letöltés CSV (Karton)", csv_karton, "filtered_karton.csv", "text/csv")
+    # Excel letöltés előkészítés
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+        st.session_state.df_filtered_karton.to_excel(writer, sheet_name="Karton szűrt", index=False)
+
+    st.download_button(
+        label="📥 Letöltés Excel (Karton)",
+        data=buffer,
+        file_name="filtered_karton.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
     st.markdown("### 📊 Statisztika – Karton keresés")
     for k, v in st.session_state.stats_karton.items():
         st.write(f"**{k}:** {v}")
-
-
 
 
 
