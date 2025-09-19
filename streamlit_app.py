@@ -691,48 +691,55 @@ with col_right:
 
 
 
-asdd = """
-st.subheader("📎 Kinyert adatok összefűzése: Karton EZT EGYELŐRE NEM CSINÁLTAM MEG")
+st.subheader("📎 Kinyert adatok összefűzése: Karton")
 
 if st.button("🔗 Összefűzés a Kartonnal"):
     try:
-        df_merged_karton = pd.merge(
-            st.session_state.df_extracted,
-            st.session_state.df_karton,
-            how="left",
-            left_on="Számlaszám",
-            right_on=invoice_colname_karton
-        )
+        # GPT számlaszámok
+        invoice_numbers = st.session_state.df_extracted["Számlaszám"].astype(str).unique()
 
-        matched_karton = df_merged_karton[invoice_colname_karton].notna().sum()
-        total_karton = len(st.session_state.df_extracted)
+        # Karton tábla előkészítése
+        df_karton = st.session_state.df_karton.copy()
+        df_karton.columns = [str(c).strip() for c in df_karton.columns]
+
+        # Szűrés: minden olyan sor kell, ahol bármelyik oszlopban szerepel a számlaszám
+        mask = df_karton.apply(lambda row: row.astype(str).isin(invoice_numbers).any(), axis=1)
+        df_filtered_karton = df_karton[mask].copy()
+
+        # Rendezés számlaszám szerint (ha van ilyen oszlop)
+        if invoice_colname_karton in df_filtered_karton.columns:
+            df_filtered_karton = df_filtered_karton.sort_values(by=invoice_colname_karton)
+
+        st.session_state.df_filtered_karton = df_filtered_karton
+
+        # Statisztika: hány GPT számlaszám talált párt a Kartonban
+        matched_karton = df_filtered_karton[invoice_colname_karton].nunique()
+        total_karton = len(invoice_numbers)
         unmatched_karton = total_karton - matched_karton
         match_rate_karton = round(100 * matched_karton / total_karton, 2)
 
-        st.session_state.df_merged_karton = df_merged_karton
         st.session_state.stats_karton = {
-            "Összes számla": total_karton,
-            "Karton egyezés": matched_karton,
+            "Összes számla (GPT)": total_karton,
+            "Kartonban megtalált": matched_karton,
             "Hiányzó egyezés": unmatched_karton,
             "Egyezési arány (%)": match_rate_karton
         }
 
-        st.success("✅ Karton összefűzés kész!")
+        st.success("✅ Karton keresés és szűrés kész!")
 
     except Exception as e:
-        st.error(f"❌ Hiba történt a Karton összefűzés során: {e}")
+        st.error(f"❌ Hiba történt a Karton keresés során: {e}")
 
-if "df_merged_karton" in st.session_state:
-    st.write("📄 **Összefűzött táblázat – Karton:**")
-    st.dataframe(st.session_state.df_merged_karton)
+if "df_filtered_karton" in st.session_state:
+    st.write("📄 **Szűrt táblázat – Karton (csak releváns sorok):**")
+    st.dataframe(st.session_state.df_filtered_karton)
 
-    csv_karton = st.session_state.df_merged_karton.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Letöltés CSV (Karton)", csv_karton, "merged_karton.csv", "text/csv")
+    csv_karton = st.session_state.df_filtered_karton.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Letöltés CSV (Karton)", csv_karton, "filtered_karton.csv", "text/csv")
 
-    st.markdown("### 📊 Statisztika – Karton összefűzés")
+    st.markdown("### 📊 Statisztika – Karton keresés")
     for k, v in st.session_state.stats_karton.items():
         st.write(f"**{k}:** {v}")
-"""
 
 
 
