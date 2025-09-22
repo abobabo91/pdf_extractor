@@ -501,8 +501,8 @@ with col_left:
                 # Nettó összehasonlítás a mintával
                 df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
                     lambda row: compare_with_tolerance(
-                        get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
-                        normalize_number(row.get("Nettó ár")),
+                        get_minta_amount(row, huf_col="Érték_minta", eur_col="Érték deviza_minta", currency_col="Devizanem_minta"),
+                        normalize_number(row.get("Nettó ár_ai")),
                         tolerance=5
                     ),
                     axis=1
