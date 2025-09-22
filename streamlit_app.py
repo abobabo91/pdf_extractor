@@ -484,13 +484,18 @@ with col_left:
                 df_gpt = st.session_state.df_extracted.copy()
                 df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
     
+                # --- átnevezés suffix-szel ---
+                df_gpt = df_gpt.add_suffix("_ai")
+                df_minta = df_minta.add_suffix("_minta")
+                
                 # ⬅️ Minta balra, GPT jobbra
                 df_merged_minta = pd.merge(
                     df_minta,
                     df_gpt,
                     how="left",
-                    left_on="Bizonylatszám",
-                    right_on="Számlaszám"
+                    left_on="Bizonylatszám_minta",
+                    right_on="Számlaszám_ai",
+                    
                 )
                 
                 # Nettó összehasonlítás a mintával
@@ -547,7 +552,7 @@ with col_left:
                 label="📥 Letöltés Excel (Mintavétel)",
                 data=buffer,
                 file_name='merged_minta.xlsx',
-                mime='application/vnd.ms-excel'
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
     
         st.markdown("### 📊 Statisztika – Mintavétel ellenőrzés")
@@ -576,51 +581,55 @@ with col_right:
                 df_nav = st.session_state.df_nav.copy()
                 df_nav.columns = [str(c).strip() for c in df_nav.columns]
                 df_nav["számlasorszám"] = df_nav["számlasorszám"].astype(str)
-
+                
                 # GPT adat előkészítés
                 df_gpt = st.session_state.df_extracted.copy()
                 df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
-
+                
+                # --- átnevezés suffix-szel ---
+                df_gpt = df_gpt.add_suffix("_ai")
+                df_nav = df_nav.add_suffix("_nav")
+                
                 # NAV aggregálás számlaszám szinten
                 agg_dict = {}
-                for col in ["bruttó érték", "bruttó érték Ft", "nettóérték", "nettóérték Ft", "adóérték", "adóérték Ft"]:
+                for col in ["bruttó érték_nav", "bruttó érték Ft_nav", "nettóérték_nav", "nettóérték Ft_nav", "adóérték_nav", "adóérték Ft_nav"]:
                     if col in df_nav.columns:
                         agg_dict[col] = "sum"
-                df_nav_sum = df_nav.groupby("számlasorszám", as_index=False).agg(agg_dict)
-
+                df_nav_sum = df_nav.groupby("számlasorszám_nav", as_index=False).agg(agg_dict)
+                
                 # Összefűzés számlaszám szintű összehasonlításhoz
                 df_check = pd.merge(
                     df_gpt,
                     df_nav_sum,
                     how="left",
-                    left_on="Számlaszám",
-                    right_on="számlasorszám"
+                    left_on="Számlaszám_ai",
+                    right_on="számlasorszám_nav"
                 )
-
+                
                 # Oszlopnevek rugalmas keresése
-                brutto_col = next((c for c in ["bruttó érték", "bruttó érték Ft"] if c in df_check.columns), None)
-                netto_col  = next((c for c in ["nettóérték", "nettóérték Ft"] if c in df_check.columns), None)
-                afa_col    = next((c for c in ["adóérték", "adóérték Ft"] if c in df_check.columns), None)
-
+                brutto_col = next((c for c in ["bruttó érték_nav", "bruttó érték Ft_nav"] if c in df_check.columns), None)
+                netto_col  = next((c for c in ["nettóérték_nav", "nettóérték Ft_nav"] if c in df_check.columns), None)
+                afa_col    = next((c for c in ["adóérték_nav", "adóérték Ft_nav"] if c in df_check.columns), None)
+                
                 # Összegellenőrzések
                 df_check["Bruttó egyezik?"] = df_check.apply(
                     lambda row: compare_with_tolerance(
                         normalize_number(row.get(brutto_col)) if brutto_col else None,
-                        normalize_number(row.get("Bruttó ár")),
+                        normalize_number(row.get("Bruttó ár_ai")),
                     ),
                     axis=1
                 )
                 df_check["Nettó egyezik?"] = df_check.apply(
                     lambda row: compare_with_tolerance(
                         normalize_number(row.get(netto_col)) if netto_col else None,
-                        normalize_number(row.get("Nettó ár")),
+                        normalize_number(row.get("Nettó ár_ai")),
                     ),
                     axis=1
                 )
                 df_check["ÁFA egyezik?"] = df_check.apply(
                     lambda row: compare_with_tolerance(
                         normalize_number(row.get(afa_col)) if afa_col else None,
-                        normalize_number(row.get("ÁFA")),
+                        normalize_number(row.get("ÁFA_ai")),
                     ),
                     axis=1
                 )
@@ -628,22 +637,22 @@ with col_right:
                     lambda row: "✅ Igen" if (row["Bruttó egyezik?"] and row["Nettó egyezik?"] and row["ÁFA egyezik?"]) else "❌ Nem",
                     axis=1
                 )
-
-                # Részletező tábla: minden NAV sor + számlaszintű ellenőrzés eredménye
+                
+                # --- Részletező tábla ---
                 df_details = pd.merge(
-                    df_gpt[["Számlaszám"]],   # csak a GPT számlák
-                    df_nav,                   # NAV tételek
-                    how="left",
-                    left_on="Számlaszám",
-                    right_on="számlasorszám"
+                    df_nav,   # NAV oszlopok _nav
+                    df_gpt,   # GPT oszlopok _ai
+                    how="right",
+                    left_on="számlasorszám_nav",
+                    right_on="Számlaszám_ai"
                 )
                 
-                # 3) Számlaszintű eredmények visszacsatolása
+                # Számlaszintű ellenőrzések visszacsatolása
                 df_details = pd.merge(
                     df_details,
-                    df_check[["Számlaszám", "Bruttó egyezik?", "Nettó egyezik?", "ÁFA egyezik?", "Minden egyezik?"]],
+                    df_check[["Számlaszám_ai", "Bruttó egyezik?", "Nettó egyezik?", "ÁFA egyezik?", "Minden egyezik?"]],
                     how="left",
-                    on="Számlaszám"
+                    on="Számlaszám_ai"
                 )
 
                 # Mentés session_state-be
