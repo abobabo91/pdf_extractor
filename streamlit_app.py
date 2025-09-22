@@ -470,6 +470,7 @@ with col_left:
     
                 df_gpt = st.session_state.df_extracted.copy()
                 df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
+                df_gpt.drop(1, axis=1)
     
                 # --- átnevezés suffix-szel ---
                 df_gpt = df_gpt.add_suffix("_ai")
