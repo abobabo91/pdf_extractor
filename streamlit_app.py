@@ -196,11 +196,11 @@ def compare_with_tolerance(val1, val2, tolerance=500):
 
         # Ha bármelyik hiányzik → "No Data"
         if val1 is None or val2 is None or pd.isna(val1) or pd.isna(val2):
-            return "No Data"
+            return "Nincs adat"
 
-        return "Yes" if abs(val1 - val2) <= tolerance else "No"
+        return "Igen" if abs(val1 - val2) <= tolerance else "Nem"
     except Exception:
-        return "No Data"
+        return "Nincs adat"
 
     
     
@@ -502,9 +502,9 @@ with col_left:
                 
                 # Minden egyezik? oszlop
                 df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].map({
-                    "Yes": "✅ Igen",
-                    "No": "❌ Nem",
-                    "No Data": pd.NA   # vagy np.nan, ha inkább float NaN-et szeretnél
+                    "Igen": "✅ Igen",
+                    "Nem": "❌ Nem",
+                    "Nincs adat": pd.NA   # vagy np.nan, ha inkább float NaN-et szeretnél
                 })
 
                 
