@@ -189,16 +189,21 @@ def normalize_number(value):
         return None
 
 
-
 def compare_with_tolerance(val1, val2, tolerance=500):
     try:
         val1 = normalize_number(val1)
         val2 = normalize_number(val2)
-        if val1 is None or val2 is None:
-            return False
-        return abs(val1 - val2) <= tolerance
-    except:
-        return False
+
+        # Ha bármelyik hiányzik → "No Data"
+        if val1 is None or val2 is None or pd.isna(val1) or pd.isna(val2):
+            return "No Data"
+
+        return "Yes" if abs(val1 - val2) <= tolerance else "No"
+    except Exception:
+        return "No Data"
+
+    
+    
 
 def get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"):
     """Returns the value in correct currency column based on Devizanem."""
@@ -212,24 +217,6 @@ def get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_
         return None
 
 
-def compare_gpt_with_minta(df_minta, df_extracted, invoice_col_minta="Bizonylatszám", invoice_col_extracted="Számlaszám", tolerance=5):
-    # Merge on invoice number
-    df_merged = pd.merge(df_minta, df_extracted, how="outer", left_on=invoice_col_minta, right_on=invoice_col_extracted)
-
-    # Compare amounts
-    df_merged["Bruttó egyezik?"] = df_merged.apply(
-        lambda row: compare_with_tolerance(
-            get_minta_amount(row, huf_col="Érték", eur_col="Érték deviza", currency_col="Devizanem"),
-            normalize_number(row["Bruttó ár"]),
-            tolerance
-        ),
-        axis=1
-    )
-
-    # Optional: add summary column
-    df_merged["Minden egyezik?"] = df_merged["Bruttó egyezik?"].apply(lambda x: "✅ Igen" if x else "❌ Nem")
-
-    return df_merged
 
 
 def merge_with_minta(df_extracted, df_minta, invoice_col_extracted="Számlaszám", invoice_col_minta="Bizonylatszám"):
@@ -501,16 +488,25 @@ with col_left:
                 # Nettó összehasonlítás a mintával
                 df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
                     lambda row: compare_with_tolerance(
-                        get_minta_amount(row, huf_col="Érték_minta", eur_col="Érték deviza_minta", currency_col="Devizanem_minta"),
+                        get_minta_amount(
+                            row,
+                            huf_col="Érték_minta",
+                            eur_col="Érték deviza_minta",
+                            currency_col="Devizanem_minta"
+                        ),
                         normalize_number(row.get("Nettó ár_ai")),
                         tolerance=5
                     ),
                     axis=1
                 )
                 
-                df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].apply(
-                    lambda x: "✅ Igen" if x else "❌ Nem"
-                )
+                # Minden egyezik? oszlop
+                df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].map({
+                    "Yes": "✅ Igen",
+                    "No": "❌ Nem",
+                    "No Data": pd.NA   # vagy np.nan, ha inkább float NaN-et szeretnél
+                })
+
                 
                 df_merged_minta = df_merged_minta.sort_values(
                     by="Minden egyezik?", 
