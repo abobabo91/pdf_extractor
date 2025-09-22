@@ -350,20 +350,19 @@ with col_pdf:
         st.write("✅ **Adatok kinyerve!** Az alábbi táblázat tartalmazza az eredményeket:")
         st.dataframe(st.session_state.df_extracted)
     
-#        extract_csv = st.session_state.df_extracted.to_csv(index=False).encode("utf-8")
-#        st.download_button("📥 Kinyert adatok letöltése CSV-ben", extract_csv, "kinyert_adatok.csv", "text/csv", key="letoltes-csv")
-        
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             st.session_state.df_extracted.to_excel(writer, sheet_name='Adatok', index=False)
-
-            st.download_button(
-                label="📥 Kinyert adatok letöltése Excelben",
-                data=buffer,
-                file_name='kinyert_adatok.xlsx',
-                mime='application/vnd.ms-excel'
-            )
-
+    
+        # 🔑 reset pointer
+        buffer.seek(0)
+    
+        st.download_button(
+            label="📥 Kinyert adatok letöltése Excelben",
+            data=buffer,
+            file_name='kinyert_adatok.xlsx',
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
     # Token ár becslés
     price_input = st.session_state.number_of_tokens * MODEL_PRICES[selected_model]["input"] / 1_000_000
