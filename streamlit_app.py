@@ -679,26 +679,31 @@ with col_right:
 
             except Exception as e:
                 st.error(f"Váratlan hiba történt a NAV összefűzés során: {e}")
-
-    if "df_merged_nav" in st.session_state:
-        st.write("📄 **Összefűzött és ellenőrzött táblázat – NAV (tételszinten):**")
-        st.dataframe(st.session_state.df_merged_nav)
-
-        # Excel letöltés
+    
+    if "df_merged_minta" in st.session_state:
+        st.write("📄 **Összefűzött és ellenőrzött táblázat – Mintavétel:**")
+        st.dataframe(st.session_state.df_merged_minta)
+    
+        csv_minta = st.session_state.df_merged_minta.to_csv(index=False).encode("utf-8")
+    
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            st.session_state.df_merged_nav.to_excel(writer, sheet_name='NAV részletek', index=False)
-
+            st.session_state.df_merged_minta.to_excel(writer, sheet_name='Minta', index=False)
+    
+        # 🔑 Reset buffer pointer to the start
+        buffer.seek(0)
+    
         st.download_button(
-            label="📥 Letöltés Excel (NAV részletek)",
+            label="📥 Letöltés Excel (Mintavétel)",
             data=buffer,
-            file_name="merged_nav.xlsx",
+            file_name='merged_minta.xlsx',
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
-        st.markdown("### 📊 Statisztika – NAV összehasonlítás")
-        for k, v in st.session_state.stats_nav.items():
+    
+        st.markdown("### 📊 Statisztika – Mintavétel ellenőrzés")
+        for k, v in st.session_state.stats_minta.items():
             st.write(f"**{k}:** {v}")
+
 
 
 st.subheader("📎 Kinyert adatok összefűzése: Karton")
