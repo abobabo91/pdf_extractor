@@ -634,10 +634,21 @@ with col_right:
                     ),
                     axis=1
                 )
-                df_check["Minden egyezik?"] = df_check.apply(
-                    lambda row: "✅ Igen" if (row["Bruttó egyezik?"] and row["Nettó egyezik?"] and row["ÁFA egyezik?"]) else "❌ Nem",
-                    axis=1
-                )
+                
+                # Minden egyezik? logika:
+                # - Ha mindhárom "Igen" → ✅ Igen
+                # - Ha bármelyik "Nem" → ❌ Nem
+                # - Egyébként (legalább egy "Nincs adat", de nincs "Nem") → Nincs adat
+                def overall_match(row):
+                    results = [row["Bruttó egyezik?"], row["Nettó egyezik?"], row["ÁFA egyezik?"]]
+                    if all(r == "Igen" for r in results):
+                        return "✅ Igen"
+                    elif any(r == "Nem" for r in results):
+                        return "❌ Nem"
+                    else:
+                        return "Nincs adat"
+                
+                df_check["Minden egyezik?"] = df_check.apply(overall_match, axis=1)
                 
                 # --- Részletező tábla ---
                 df_details = pd.merge(
@@ -655,21 +666,21 @@ with col_right:
                     how="left",
                     on="Számlaszám_ai"
                 )
-
+                
                 # Mentés session_state-be
                 st.session_state.df_merged_nav = df_details
-
+                
                 # Statisztika számlaszám szinten
                 total = len(df_check)
                 matched_all = (df_check["Minden egyezik?"] == "✅ Igen").sum()
                 match_rate = round(100 * matched_all / total, 2)
-    
+                
                 st.session_state.stats_nav = {
                     "Összes számla": total,
                     "Minden egyezés": matched_all,
                     "Teljes egyezési arány (%)": match_rate
                 }
-
+                
                 st.success("✅ NAV fájllal való összefűzés és ellenőrzés kész!")
 
             except Exception as e:
