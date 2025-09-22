@@ -364,6 +364,7 @@ with col_pdf:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
+
     # Token ár becslés
     price_input = st.session_state.number_of_tokens * MODEL_PRICES[selected_model]["input"] / 1_000_000
     st.write(f"💰 A becsült feldolgozási költség eddig: **${price_input:.2f}** ({selected_model})")
@@ -541,18 +542,20 @@ with col_left:
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             st.session_state.df_merged_minta.to_excel(writer, sheet_name='Minta', index=False)
-            
-            st.download_button(
-                label="📥 Letöltés Excel (Mintavétel)",
-                data=buffer,
-                file_name='merged_minta.xlsx',
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+    
+        # 🔑 Reset buffer pointer to the start
+        buffer.seek(0)
+    
+        st.download_button(
+            label="📥 Letöltés Excel (Mintavétel)",
+            data=buffer,
+            file_name='merged_minta.xlsx',
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     
         st.markdown("### 📊 Statisztika – Mintavétel ellenőrzés")
         for k, v in st.session_state.stats_minta.items():
             st.write(f"**{k}:** {v}")
-
 
 
 with col_right:
@@ -678,31 +681,26 @@ with col_right:
 
             except Exception as e:
                 st.error(f"Váratlan hiba történt a NAV összefűzés során: {e}")
-    
-    if "df_merged_minta" in st.session_state:
-        st.write("📄 **Összefűzött és ellenőrzött táblázat – Mintavétel:**")
-        st.dataframe(st.session_state.df_merged_minta)
-    
-        csv_minta = st.session_state.df_merged_minta.to_csv(index=False).encode("utf-8")
-    
+
+    if "df_merged_nav" in st.session_state:
+        st.write("📄 **Összefűzött és ellenőrzött táblázat – NAV (tételszinten):**")
+        st.dataframe(st.session_state.df_merged_nav)
+
+        # Excel letöltés
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            st.session_state.df_merged_minta.to_excel(writer, sheet_name='Minta', index=False)
-    
-        # 🔑 Reset buffer pointer to the start
-        buffer.seek(0)
-    
+            st.session_state.df_merged_nav.to_excel(writer, sheet_name='NAV részletek', index=False)
+
         st.download_button(
-            label="📥 Letöltés Excel (Mintavétel)",
+            label="📥 Letöltés Excel (NAV részletek)",
             data=buffer,
-            file_name='merged_minta.xlsx',
+            file_name="merged_nav.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-    
-        st.markdown("### 📊 Statisztika – Mintavétel ellenőrzés")
-        for k, v in st.session_state.stats_minta.items():
-            st.write(f"**{k}:** {v}")
 
+        st.markdown("### 📊 Statisztika – NAV összehasonlítás")
+        for k, v in st.session_state.stats_nav.items():
+            st.write(f"**{k}:** {v}")
 
 
 st.subheader("📎 Kinyert adatok összefűzése: Karton")
