@@ -343,7 +343,6 @@ with col_pdf:
                          "Bruttó ár", "Nettó ár", "ÁFA", "Deviza", "Árfolyam"]
             )
             st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
-            st.session_state.df_extracted["1"] = np.nan
 
 
     
@@ -470,11 +469,6 @@ with col_left:
     
                 df_gpt = st.session_state.df_extracted.copy()
                 df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
-                
-                try:
-                    df_gpt.drop('1', axis=1, inplace=True)
-                except:
-                    pass
     
                 # --- átnevezés suffix-szel ---
                 df_gpt = df_gpt.add_suffix("_ai")
