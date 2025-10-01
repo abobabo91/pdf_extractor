@@ -10,6 +10,7 @@ import PyPDF2
 from pdf2image import convert_from_bytes
 import gc
 import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 from io import BytesIO
 import openai
 from openai import OpenAI
@@ -32,17 +33,6 @@ MODEL_PRICES = {
     "gpt-4.1-mini": {"input": 0.25, "output": 2.00},
     "gpt-4.1-nano": {"input": 0.05, "output": 0.40},
 }
-
-def make_arrow_compatible(df: pd.DataFrame) -> pd.DataFrame:
-    """Fixes DataFrame columns so they are Arrow-compatible for Streamlit."""
-    if df is None or df.empty:
-        return df
-    df_fixed = df.copy()
-    for col in df_fixed.columns:
-        # minden object típusú oszlopot stringgé erőltetünk
-        if df_fixed[col].dtype == "object":
-            df_fixed[col] = df_fixed[col].astype(str)
-    return df_fixed
 
 
 def df_ready(df, required_cols=None):
@@ -70,13 +60,14 @@ def replace_successive_duplicates(df, column_to_compare, columns_to_delete):
         result.loc[mask, col] = np.nan
     return result
 
-
-
 def extract_text_from_pdf(uploaded_file):
+    import cv2
+    from PIL import Image
+
     file_name = uploaded_file.name
     pdf_content = ""
 
-    # 1) sima szövegkinyerés
+    # 1) Try direct text extraction with PyPDF2
     try:
         pdf_reader = PyPDF2.PdfReader(uploaded_file)
         for page in pdf_reader.pages:
@@ -85,25 +76,35 @@ def extract_text_from_pdf(uploaded_file):
         st.error(f"Hiba a(z) {file_name} fájl olvasásakor: {e}")
         return None
 
-    # 2) OCR fallback, ha túl kevés szöveg van
+    # 2) OCR fallback if too little text extracted
     if len(pdf_content.strip()) < 100:
         pdf_content = ""
         try:
             uploaded_file.seek(0)
             file_bytes = uploaded_file.read()
 
-            # először derítsük ki hány oldal van
+            # determine number of pages
             num_pages = len(PyPDF2.PdfReader(BytesIO(file_bytes)).pages)
 
             progress = st.progress(0)
             for i in range(1, num_pages + 1):
-                images = convert_from_bytes(file_bytes, dpi=150, first_page=i, last_page=i)
-#                images = convert_from_bytes(file_bytes, dpi=150, first_page=i, last_page=i, poppler_path = r"C:\poppler-24.08.0\Library\bin") #local)
-                text = pytesseract.image_to_string(images[0], lang="hun")
+                # higher DPI for sharper OCR
+                images = convert_from_bytes(file_bytes, dpi=300, first_page=i, last_page=i)
+
+                # --- OpenCV preprocessing with Otsu threshold ---
+                img = cv2.cvtColor(np.array(images[0]), cv2.COLOR_RGB2GRAY)
+                _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+                # back to PIL for pytesseract
+                img_pil = Image.fromarray(img)
+
+                # OCR with Hungarian language, PSM 6 (single uniform block of text)
+                custom_config = r'--psm 3'
+                text = pytesseract.image_to_string(img_pil, lang="hun", config=custom_config)
                 pdf_content += text + "\n"
 
-                # memóriatisztítás
-                del images
+                # cleanup
+                del images, img, img_pil
                 gc.collect()
 
                 progress.progress(i / num_pages)
@@ -112,7 +113,7 @@ def extract_text_from_pdf(uploaded_file):
             st.error(f"OCR hiba a(z) {file_name} fájlnál: {e}")
             return None
 
-    # 3) hosszkorlátozás
+    # 3) Truncate if too long
     if len(pdf_content) > 300000:
         st.warning(file_name + " túl hosszú, csak az első 300000 karakter kerül feldolgozásra.")
         pdf_content = pdf_content[:300000]
@@ -122,10 +123,11 @@ def extract_text_from_pdf(uploaded_file):
 
 
 
-def generate_gpt_prompt(text):
+
+def generate_gpt_prompt(text, file_name):
     """Generates a clear, structured GPT prompt for invoice data extraction."""
     return (
-        "You are given the extracted text of a Hungarian invoice PDF. "
+        f"You are given the extracted text of a Hungarian invoice PDF file named '{file_name}'. "
         "The PDF may contain multiple invoices merged together. "
         "Your task is to extract the following **9 data fields** for each invoice:\n\n"
         "1. Seller name (string)\n"
@@ -143,7 +145,8 @@ def generate_gpt_prompt(text):
         "- Do **not** include field numbers (e.g. '1)', '2)' etc.) in the output.\n"
         "- Write all numeric fields as plain integers (e.g. `1500000`).\n"
         "- **Do not use thousands separators** (e.g. `.`) or decimal commas (`,`) in the output and only output the integer part of the numbers.\n"
-        "- Note: In Hungarian, decimal separators are commas (`,`) instead of dots (`.`) and thousand separators are dots (`.`)"
+        "- Note: In Hungarian, decimal separators are commas (`,`) instead of dots (`.`) and thousand separators are dots (`.`)\n"
+        "- The invoice number often appears in or matches the file name. Always first try to extract the invoice number from the text itself, but you can compare it to the file name too.\n"
         "- Do **not** include any explanation, headings, or extra text — just the data rows.\n\n"
         "Extracted text:\n"
         f"{text}"
@@ -152,7 +155,12 @@ def generate_gpt_prompt(text):
 
 def extract_data_with_gpt(file_name, text, model_name):
     """A kiválasztott GPT modellel kinyeri a struktúrált adatokat a PDF szövegből."""
-    gpt_prompt = generate_gpt_prompt(text)
+    gpt_prompt = generate_gpt_prompt(text, file_name)
+
+    # --- Debug: show extracted text ---
+    with st.expander(f"📜 Kinyert szöveg – {file_name}"):
+        st.text_area("Extracted text", gpt_prompt[:10000], height=300)  # first 10k chars
+
 
     try:
         client = OpenAI(api_key=openai.api_key)
@@ -161,7 +169,6 @@ def extract_data_with_gpt(file_name, text, model_name):
             messages=[
                 {"role": "system", "content": ""},
                 {"role": "user", "content": gpt_prompt}],
-            max_completion_tokens=5000,
             timeout=30
         )
 
@@ -315,6 +322,7 @@ with col_pdf:
                     continue
     
                 st.session_state.extracted_text_from_invoice.append([file_name, pdf_text])
+
     
                 # update progress
                 pdf_progress.progress(idx / len(files_to_process), 
@@ -359,7 +367,7 @@ with col_pdf:
     
     if len(st.session_state.df_extracted) > 0:        
         st.write("✅ **Adatok kinyerve!** Az alábbi táblázat tartalmazza az eredményeket:")
-        st.dataframe(make_arrow_compatible(st.session_state.df_extracted))
+        st.dataframe(st.session_state.df_extracted)
     
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
@@ -408,7 +416,7 @@ with col_excel:
     
     if len(st.session_state.df_minta) > 0:        
         st.write("✅ **Mintavétel betöltve!** Első néhány sor:")
-        st.dataframe(make_arrow_compatible(st.session_state.df_minta.head(5)))
+        st.dataframe(st.session_state.df_minta.head(5))
     
     
     
@@ -429,7 +437,7 @@ with col_excel:
     
     if len(st.session_state.df_nav) > 0:        
         st.write("✅ **NAV fájl betöltve!** Első néhány sor:")
-        st.dataframe(make_arrow_compatible(st.session_state.df_nav.head(5)))
+        st.dataframe(st.session_state.df_nav.head(5))
     
     # Karton fájl
     st.markdown("3) Töltsd fel a **Karton** Excel fájlt:")
@@ -446,7 +454,7 @@ with col_excel:
             st.session_state.df_karton = pd.read_excel(uploaded_excel_file_karton)
     
             st.write("✅ **Karton betöltve!** Első néhány sor:")
-            st.dataframe(make_arrow_compatible(st.session_state.df_karton.head(5)))
+            st.dataframe(st.session_state.df_karton.head(5))
     
         except Exception as e:
             st.warning(f"❌ Nem sikerült beolvasni a Karton fájlt: {e}")
@@ -546,7 +554,7 @@ with col_left:
     
     if "df_merged_minta" in st.session_state:
         st.write("📄 **Összefűzött és ellenőrzött táblázat – Mintavétel:**")
-        st.dataframe(make_arrow_compatible(st.session_state.df_merged_minta))
+        st.dataframe(st.session_state.df_merged_minta)
     
         csv_minta = st.session_state.df_merged_minta.to_csv(index=False).encode("utf-8")
     
@@ -695,7 +703,7 @@ with col_right:
 
     if "df_merged_nav" in st.session_state:
         st.write("📄 **Összefűzött és ellenőrzött táblázat – NAV (tételszinten):**")
-        st.dataframe(make_arrow_compatible(st.session_state.df_merged_nav))
+        st.dataframe(st.session_state.df_merged_nav)
 
         # Excel letöltés
         buffer = BytesIO()
@@ -755,7 +763,7 @@ if st.button("🔗 Összefűzés a Kartonnal"):
 
 if "df_filtered_karton" in st.session_state:
     st.write("📄 **Szűrt táblázat – Karton (csak releváns sorok):**")
-    st.dataframe(make_arrow_compatible(st.session_state.df_filtered_karton))
+    st.dataframe(st.session_state.df_filtered_karton)
 
     # Excel letöltés előkészítés
     buffer = BytesIO()
