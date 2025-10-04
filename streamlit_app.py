@@ -1,3 +1,11 @@
+#TODO
+
+#- mnb arfolyam
+#- nav minta osszefuzes
+#- megjegyzesek kiszedese
+#- berakni a megtalalt de nem összeparositott sorokat is az összefuzott dolgokba alulra
+
+
 import streamlit as st
 st.set_page_config(layout="wide")
 import pandas as pd
