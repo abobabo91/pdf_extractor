@@ -9,4 +9,4 @@ openpyxl
 xlsxwriter
 tiktoken
 xlrd
-cv2
+opencv-python-headless
