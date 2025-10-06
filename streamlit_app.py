@@ -1,10 +1,5 @@
 #TODO
 
-#- mnb arfolyam
-#- nav minta osszefuzes
-#- megjegyzesek kiszedese
-#- berakni a megtalalt de nem összeparositott sorokat is az összefuzott dolgokba alulra
-
 
 import streamlit as st
 st.set_page_config(layout="wide")
@@ -156,8 +151,9 @@ def generate_gpt_prompt(text, file_name):
         "7. VAT amount (integer)\n"
         "8. Currency (string: 'HUF' or 'EUR')\n"
         "9. Exchange rate (integer, use 1 if invoice is in HUF)\n\n"
+        "10. Comments (string), any text that describes the business transaction the invoice contains (max 100 characters). If there is no comment, write an empty string.\n\n"
         "**Important formatting instructions:**\n"
-        "- Use semicolon (`;`) to separate the 9 fields.\n"
+        "- Use semicolon (`;`) to separate the 10 fields.\n"
         "- Use **one line per invoice**.\n"
         "- Do **not** include field numbers (e.g. '1)', '2)' etc.) in the output.\n"
         "- Write all numeric fields as plain integers (e.g. `1500000`).\n"
@@ -175,8 +171,8 @@ def extract_data_with_gpt(file_name, text, model_name):
     gpt_prompt = generate_gpt_prompt(text, file_name)
 
     # --- Debug: show extracted text ---
-    with st.expander(f"📜 Kinyert szöveg – {file_name}"):
-        st.text_area("Extracted text", gpt_prompt[:10000], height=300)  # first 10k chars
+#    with st.expander(f"📜 Kinyert szöveg – {file_name}"):
+#        st.text_area("Extracted text", gpt_prompt[:10000], height=300)  # first 10k chars
 
 
     try:
@@ -196,7 +192,7 @@ def extract_data_with_gpt(file_name, text, model_name):
         parsed_rows = []
         for row in rows:
             parts = row.strip().split(";")
-            if len(parts) != 9:
+            if len(parts) != 10:
                 st.warning(f"Hibás sor ({file_name}): {row}")
                 continue
 
@@ -308,7 +304,7 @@ with col_pdf:
     # 0) Fájl feltöltő
     uploaded_files = st.file_uploader("📤 PDF fájlok feltöltése", type=["pdf"], accept_multiple_files=True)
     
-    selected_model = st.selectbox(
+    asd = """selected_model = st.selectbox(
         "Válassz modellt az adatkinyeréshez:",
         ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
         index=0,
@@ -317,7 +313,9 @@ with col_pdf:
              "- gpt-4.1: \\$1.25 input / \\$10 output\n"
              "- gpt-4.1-mini: \\$0.25 input / \\$2 output\n"
              "- gpt-4.1-nano: \\$0.05 input / \\$0.40 output"
-        )
+        )"""
+    
+    selected_model = "gpt-4o"
     
     # 1) PDF feldolgozás
     if st.button("📑 Adatkinyerés a PDF-ből"):  
@@ -377,7 +375,7 @@ with col_pdf:
             st.session_state.df_extracted = pd.DataFrame(
                 st.session_state.extracted_data,
                 columns=["Fájlnév", "Eladó", "Vevő", "Számlaszám", "Számla kelte", 
-                         "Bruttó ár", "Nettó ár", "ÁFA", "Deviza", "Árfolyam"]
+                         "Bruttó ár", "Nettó ár", "ÁFA", "Deviza", "Árfolyam", "Megjegyzések"]
             )
             st.session_state.df_extracted["Számlaszám"] = st.session_state.df_extracted["Számlaszám"].astype(str)
 
@@ -406,6 +404,152 @@ with col_pdf:
     price_input = st.session_state.number_of_tokens * MODEL_PRICES[selected_model]["input"] / 1_000_000
     st.write(f"💰 A becsült feldolgozási költség eddig: **${price_input:.2f}** ({selected_model})")
 
+        
+    import requests
+    import xml.etree.ElementTree as ET
+    import datetime
+    
+    def get_mnb_eur_rate(date_str, max_lookback_days=7, debug=False):
+        """
+        Gets the EUR/HUF rate from MNB SOAP webservice for the given date.
+        Falls back to earlier dates if rate not found.
+        """
+        soap_url = "http://www.mnb.hu/arfolyamok.asmx"
+        soap_action = "http://www.mnb.hu/webservices/MNBArfolyamServiceSoap/GetExchangeRates"
+        headers = {
+            "Content-Type": "text/xml; charset=utf-8",
+            "SOAPAction": soap_action,
+        }
+    
+        dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    
+        for i in range(max_lookback_days + 1):
+            check_date = (dt - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+    
+            # SOAP request body
+            soap_body = f"""<?xml version="1.0" encoding="utf-8"?>
+            <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+              <soap:Body>
+                <GetExchangeRates xmlns="http://www.mnb.hu/webservices/">
+                  <startDate>{check_date}</startDate>
+                  <endDate>{check_date}</endDate>
+                  <currencyNames>EUR</currencyNames>
+                </GetExchangeRates>
+              </soap:Body>
+            </soap:Envelope>"""
+    
+            debug = False
+            if debug:
+                st.code(soap_body, language="xml")
+    
+            try:
+                resp = requests.post(soap_url, headers=headers, data=soap_body, timeout=10)
+                resp.raise_for_status()
+    
+                if debug:
+                    st.text_area(f"SOAP response for {check_date}", resp.text[:2000], height=150)
+    
+                # Parse XML response
+                root = ET.fromstring(resp.content)
+                ns = {"mnb": "http://www.mnb.hu/webservices/"}
+    
+                rate_text = root.find(".//mnb:GetExchangeRatesResult", ns)
+                if rate_text is None or not rate_text.text:
+                    continue
+    
+                # inner XML (string)
+                inner_xml = ET.fromstring(rate_text.text)
+                rate = inner_xml.find(".//Rate")
+                if rate is not None and rate.text:
+                    return float(rate.text.replace(",", "."))
+    
+            except Exception as e:
+                if debug:
+                    st.warning(f"Attempt {i+1} ({check_date}) failed: {e}")
+                continue
+    
+        st.warning(f"❌ Nem található MNB árfolyam {date_str} vagy az előző {max_lookback_days} napban.")
+        return None
+
+    rate = get_mnb_eur_rate("2024-10-15", debug=True)
+    print(rate)
+
+    
+    # --- 💶 Árfolyam ellenőrzés blokk ---
+    if not st.session_state.df_extracted.empty:
+        df_fx_check = st.session_state.df_extracted.copy()
+    
+        # szűrés: csak EUR és Árfolyam != 1
+        df_fx_check = df_fx_check[
+            (df_fx_check["Deviza"].str.upper() == "EUR")
+        ].copy()
+    
+        if not df_fx_check.empty:
+            st.markdown("### 💶 Árfolyam ellenőrzés (MNB hivatalos árfolyam alapján)")
+    
+            # NEW: Debug toggle
+            #debug_fx = st.checkbox("🔧 Show API request/response debug", value=False, help="Print the full URL and raw XML/HTML response for each query/attempt.")
+    
+            if st.button("🔍 Árfolyamok ellenőrzése"):
+                mnb_rates = []
+                rate_matches = []
+    
+                for _, row in df_fx_check.iterrows():
+                    try:
+                        date_str = str(row["Számla kelte"]).strip()
+                        parsed_date = pd.to_datetime(date_str, errors="coerce")
+                        if pd.isna(parsed_date):
+                            mnb_rates.append(None)
+                            rate_matches.append("Nincs adat")
+                            continue
+    
+                        mnb_date = parsed_date.strftime("%Y-%m-%d")
+                        # pass debug flag through
+                        mnb_rate = get_mnb_eur_rate(mnb_date, debug=False)
+                        mnb_rates.append(mnb_rate)
+    
+                        if mnb_rate is not None:
+                            cmp = compare_with_tolerance(row["Árfolyam"], mnb_rate, tolerance=1)
+                            rate_matches.append(cmp)
+                        else:
+                            rate_matches.append("Nincs adat")
+    
+                    except Exception:
+                        mnb_rates.append(None)
+                        rate_matches.append("Nincs adat")
+
+    
+                df_fx_check["MNB árfolyam"] = mnb_rates
+                df_fx_check["Árfolyam egyezik?"] = [x.replace('Igen', '✅ Igen').replace('Nem', '❌ Nem') for x in rate_matches]
+    
+                # Statisztika
+                total_fx = len(df_fx_check)
+                matched_fx = sum(1 for x in rate_matches if x == "Igen")
+                match_rate = round(100 * matched_fx / total_fx, 2) if total_fx else 0.0
+    
+                st.write(f"**Ellenőrzött EUR számlák száma:** {total_fx}")
+                st.write(f"**Egyező árfolyamok:** {matched_fx}  ({match_rate}%)")
+    
+                st.dataframe(make_arrow_compatible(df_fx_check[[
+                    "Fájlnév", "Számlaszám", "Számla kelte", "Deviza",
+                    "Árfolyam", "MNB árfolyam", "Árfolyam egyezik?"
+                ]]))
+    
+                # Excel letöltés opció
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df_fx_check.to_excel(writer, sheet_name='Arfolyam_ellenorzes', index=False)
+                buffer.seek(0)
+    
+                st.download_button(
+                    label="📥 Árfolyam ellenőrzés letöltése Excelben",
+                    data=buffer,
+                    file_name='arfolyam_ellenorzes.xlsx',
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+    
 
 
 with col_excel:
@@ -506,22 +650,30 @@ with col_left:
     
                 df_gpt = st.session_state.df_extracted.copy()
                 df_gpt["Számlaszám"] = df_gpt["Számlaszám"].astype(str)
-    
+                    
                 # --- átnevezés suffix-szel ---
                 df_gpt = df_gpt.add_suffix("_ai")
                 df_minta = df_minta.add_suffix("_minta")
                 
-                # ⬅️ Minta balra, GPT jobbra
+                # ⬅️ teljes outer merge – hogy a csak-AI sorok is bekerüljenek
                 df_merged_minta = pd.merge(
                     df_minta,
                     df_gpt,
-                    how="left",
+                    how="outer",
                     left_on="Bizonylatszám_minta",
                     right_on="Számlaszám_ai",
-                    
+                    indicator=True
                 )
                 
-                # Nettó összehasonlítás a mintával
+                # Találati státusz
+                status_map = {
+                    "both": "🔗 Egyezés",
+                    "left_only": "📄 Csak Mintavétel",
+                    "right_only": "🤖 Csak AI (PDF)"
+                }
+                df_merged_minta["Találat státusz"] = df_merged_minta["_merge"].map(status_map)
+                
+                # Nettó összehasonlítás
                 df_merged_minta["Nettó egyezik?"] = df_merged_minta.apply(
                     lambda row: compare_with_tolerance(
                         get_minta_amount(
@@ -536,35 +688,49 @@ with col_left:
                     axis=1
                 )
                 
-                # Minden egyezik? oszlop
+                # Minden egyezik?
                 df_merged_minta["Minden egyezik?"] = df_merged_minta["Nettó egyezik?"].map({
                     "Igen": "✅ Igen",
                     "Nem": "❌ Nem",
-                    "Nincs adat": pd.NA   # vagy np.nan, ha inkább float NaN-et szeretnél
+                    "Nincs adat": ""
                 })
+                
+                # --- RENDEZÉS: ---
+                
+                # cél: felül az egyezések (both), középen a csak minták (left_only), alul a csak AI (right_only)
+                status_order = pd.CategoricalDtype(categories=["both", "left_only", "right_only"], ordered=True)
+                df_merged_minta["_merge"] = df_merged_minta["_merge"].astype(status_order)
+                
+                # jelöljük, ha teljesen egyezik a nettó érték
+                df_merged_minta["__ok_order"] = df_merged_minta["Minden egyezik?"].eq("✅ Igen").astype(int)
+                
+                # 🔧 most a kategória sorrend garantálja a helyes sorrendet
+                df_merged_minta = (
+                    df_merged_minta
+                    .sort_values(
+                        by=["_merge", "__ok_order"],
+                        ascending=[True, False]  # Egyezés felül, "✅ Igen" előrébb
+                    )
+                    .drop(columns=["_merge", "__ok_order"])
+                    .reset_index(drop=True)
+                )
 
                 
-                df_merged_minta = df_merged_minta.sort_values(
-                    by="Minden egyezik?", 
-                    ascending=False, 
-                    key=lambda col: col.eq("✅ Igen"), 
-                    kind="stable"
-                ).reset_index(drop=True)
-
                 st.session_state.df_merged_minta = df_merged_minta
-    
-                # 📊 Statisztika
+                
+                # --- statisztika ---
                 total = len(df_merged_minta)
                 matched = (df_merged_minta["Minden egyezik?"] == "✅ Igen").sum()
-                match_rate = round(100 * matched / total, 2)
-    
+                match_rate = round(100 * matched / total, 2) if total else 0.0
+                
                 st.session_state.stats_minta = {
-                    "Összes számla": total,
+                    "Összes sor a táblában": total,
                     "Minden egyezés": matched,
                     "Egyezési arány (%)": match_rate
                 }
-    
-                st.success("✅ Összefűzés és ellenőrzés a Mintavétellel kész!")
+                
+                st.success("✅ Összefűzés és rendezés kész — az egyezések felül, csak minták középen, csak AI alul!")
+
     
             except Exception as e:
                 st.error(f"Váratlan hiba történt a Mintavétel összefűzés során: {e}")
@@ -740,66 +906,144 @@ with col_right:
             st.write(f"**{k}:** {v}")
 
 
-st.subheader("📎 Kinyert adatok összefűzése: Karton")
-
-if st.button("🔗 Összefűzés a Kartonnal"):
-    try:
-        # GPT számlaszámok
-        invoice_numbers = st.session_state.df_extracted["Számlaszám"].astype(str).unique()
-
-        # Karton tábla előkészítése
-        df_karton = st.session_state.df_karton.copy()
-        df_karton.columns = [str(c).strip() for c in df_karton.columns]
-
-        # Szűrés: minden olyan sor kell, ahol bármelyik oszlopban szerepel a számlaszám
-        mask = df_karton.apply(lambda row: row.astype(str).isin(invoice_numbers).any(), axis=1)
-        df_filtered_karton = df_karton[mask].copy()
-
-        # Ha van "Bizonylat" vagy "Számlaszám" oszlop, rendezzük arra
-        for possible_col in ["Bizonylat", "Számlaszám", "számlasorszám"]:
-            if possible_col in df_filtered_karton.columns:
-                df_filtered_karton = df_filtered_karton.sort_values(by=possible_col)
-                break
-
-        st.session_state.df_filtered_karton = df_filtered_karton
-
-        # Statisztika: hány GPT számlaszámhoz találtunk sorokat
-        matched_karton = df_filtered_karton.apply(
-            lambda row: any(str(val) in invoice_numbers for val in row.values), axis=1
-        ).sum()
-        total_karton = len(invoice_numbers)
-
-        st.session_state.stats_karton = {
-            "Összes számla (GPT)": total_karton,
-            "Kartonban megtalált sorok": matched_karton,
-        }
-
-        st.success("✅ Karton keresés és szűrés kész!")
-
-    except Exception as e:
-        st.error(f"❌ Hiba történt a Karton keresés során: {e}")
-
-if "df_filtered_karton" in st.session_state:
-    st.write("📄 **Szűrt táblázat – Karton (csak releváns sorok):**")
-    st.dataframe(make_arrow_compatible(st.session_state.df_filtered_karton))
-
-    # Excel letöltés előkészítés
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        st.session_state.df_filtered_karton.to_excel(writer, sheet_name="Karton szűrt", index=False)
-
-    st.download_button(
-        label="📥 Letöltés Excel (Karton)",
-        data=buffer,
-        file_name="filtered_karton.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-    st.markdown("### 📊 Statisztika – Karton keresés")
-    for k, v in st.session_state.stats_karton.items():
-        st.write(f"**{k}:** {v}")
+col_karton, col_mintanav = st.columns([1, 1])
 
 
+with col_karton:
+    st.subheader("📎 Kinyert adatok összefűzése: Karton")
+    
+    if st.button("🔗 Összefűzés a Kartonnal"):
+        try:
+            # GPT számlaszámok
+            invoice_numbers = st.session_state.df_extracted["Számlaszám"].astype(str).unique()
+    
+            # Karton tábla előkészítése
+            df_karton = st.session_state.df_karton.copy()
+            df_karton.columns = [str(c).strip() for c in df_karton.columns]
+    
+            # Szűrés: minden olyan sor kell, ahol bármelyik oszlopban szerepel a számlaszám
+            mask = df_karton.apply(lambda row: row.astype(str).isin(invoice_numbers).any(), axis=1)
+            df_filtered_karton = df_karton[mask].copy()
+    
+            # Ha van "Bizonylat" vagy "Számlaszám" oszlop, rendezzük arra
+            for possible_col in ["Bizonylat", "Számlaszám", "számlasorszám"]:
+                if possible_col in df_filtered_karton.columns:
+                    df_filtered_karton = df_filtered_karton.sort_values(by=possible_col)
+                    break
+    
+            st.session_state.df_filtered_karton = df_filtered_karton
+    
+            # Statisztika: hány GPT számlaszámhoz találtunk sorokat
+            matched_karton = df_filtered_karton.apply(
+                lambda row: any(str(val) in invoice_numbers for val in row.values), axis=1
+            ).sum()
+            total_karton = len(invoice_numbers)
+    
+            st.session_state.stats_karton = {
+                "Összes számla (GPT)": total_karton,
+                "Kartonban megtalált sorok": matched_karton,
+            }
+    
+            st.success("✅ Karton keresés és szűrés kész!")
+    
+        except Exception as e:
+            st.error(f"❌ Hiba történt a Karton keresés során: {e}")
+    
+    if "df_filtered_karton" in st.session_state:
+        st.write("📄 **Szűrt táblázat – Karton (csak releváns sorok):**")
+        st.dataframe(make_arrow_compatible(st.session_state.df_filtered_karton))
+    
+        # Excel letöltés előkészítés
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            st.session_state.df_filtered_karton.to_excel(writer, sheet_name="Karton szűrt", index=False)
+    
+        st.download_button(
+            label="📥 Letöltés Excel (Karton)",
+            data=buffer,
+            file_name="filtered_karton.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    
+        st.markdown("### 📊 Statisztika – Karton keresés")
+        for k, v in st.session_state.stats_karton.items():
+            st.write(f"**{k}:** {v}")
+    
+with col_mintanav:
+    st.subheader("📎 Minta és NAV adatok összefűzése")
+
+    if st.button("🔗 Összefűzés a Minta és NAV adatok között"):
+        missing = []
+        if not df_ready(st.session_state.df_minta, required_cols=["Bizonylatszám"]):
+            missing.append("Mintavétel Excel")
+        if not df_ready(st.session_state.df_nav, required_cols=["számlasorszám"]):
+            missing.append("NAV Excel")
+
+        if missing:
+            need_msg(missing)
+        else:
+            try:
+                df_minta = st.session_state.df_minta.copy()
+                df_nav = st.session_state.df_nav.copy()
+
+                df_minta.columns = [str(c).strip() for c in df_minta.columns]
+                df_nav.columns = [str(c).strip() for c in df_nav.columns]
+
+                df_minta["Bizonylatszám"] = df_minta["Bizonylatszám"].astype(str)
+                df_nav["számlasorszám"] = df_nav["számlasorszám"].astype(str)
+
+                # add suffixes to avoid column name collisions
+                df_minta_s = df_minta.add_suffix("_minta")
+                df_nav_s = df_nav.add_suffix("_nav")
+
+                # Left join (Minta as left)
+                df_minta_nav = pd.merge(
+                    df_minta_s,
+                    df_nav_s,
+                    how="left",
+                    left_on="Bizonylatszám_minta",
+                    right_on="számlasorszám_nav"
+                )
+
+                st.session_state.df_minta_nav = df_minta_nav
+
+                # Simple stats
+                total_rows = len(df_minta_nav)
+                matched = df_minta_nav["számlasorszám_nav"].notna().sum()
+                unmatched = total_rows - matched
+                match_rate = round(100 * matched / total_rows, 2) if total_rows else 0.0
+
+                st.session_state.stats_minta_nav = {
+                    "Összes Minta sor": total_rows,
+                    "NAV-ban talált számlák": matched,
+                    "Hiányzó számlák": unmatched,
+                    "Egyezési arány (%)": match_rate,
+                }
+
+                st.success("✅ Minta és NAV adatok összefűzése kész!")
+
+            except Exception as e:
+                st.error(f"❌ Hiba történt az összefűzés során: {e}")
+
+    if "df_minta_nav" in st.session_state:
+        st.write("📄 **Összefűzött táblázat – Minta × NAV:**")
+        st.dataframe(make_arrow_compatible(st.session_state.df_minta_nav))
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            st.session_state.df_minta_nav.to_excel(writer, sheet_name="Minta_NAV", index=False)
+        buffer.seek(0)
+
+        st.download_button(
+            label="📥 Letöltés Excel (Minta–NAV)",
+            data=buffer,
+            file_name="merged_minta_nav.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.markdown("### 📊 Statisztika – Minta × NAV összefűzés")
+        for k, v in st.session_state.stats_minta_nav.items():
+            st.write(f"**{k}:** {v}")
 
 
 
